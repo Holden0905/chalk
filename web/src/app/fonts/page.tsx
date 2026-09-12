@@ -27,7 +27,11 @@ function Specimen({ label, cssVar, note }: { label: string; cssVar: string; note
   return (
     <section
       className="mt-10 first:mt-4"
-      style={{ ["--font-display" as string]: `var(${cssVar})` }}
+      // .chalk reads --font-chalk, which Tailwind resolves once at :root from
+      // --font-display. Overriding --font-display here would change nothing,
+      // because the inherited value is already substituted. Override the
+      // variable the rule actually reads.
+      style={{ ["--font-chalk" as string]: `var(${cssVar})` }}
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="label text-butter">

@@ -10,28 +10,48 @@ function favourite(spreadHome: number | null, home: string | null, away: string 
   return spreadHome < 0 ? { team: home, line: spreadHome } : { team: away, line: -spreadHome };
 }
 
-function TeamName({ abbr, name, rating, rank }: BoardGame["home"]) {
-  const body = (
+const ratingText = (rank: number | null, rating: number | null) =>
+  `${rank != null ? `#${rank}` : "–"} · ${rating != null ? `${rating > 0 ? "+" : "−"}${Math.abs(rating).toFixed(1)}` : "–"}`;
+
+function linked(abbr: string | null, className: string, children: React.ReactNode) {
+  return abbr ? (
+    <Link href={`/team/${abbr}`} className={`${className} hover:opacity-80`}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
+  );
+}
+
+/** Stacked, for phone width: the name gets the whole card width. */
+function TeamRow({ abbr, name, rating, rank }: BoardGame["home"]) {
+  return linked(
+    abbr,
+    "flex items-baseline justify-between gap-3 py-0.5",
     <>
-      <span className="chalk block text-2xl leading-tight font-bold sm:text-[1.75rem]">
+      <span className="min-w-0">
+        <span className="chalk text-[1.5rem] leading-tight font-bold">{nickname(name)}</span>
+        <span className="label ml-2 normal-case tracking-normal text-[0.6875rem]">{city(name)}</span>
+      </span>
+      <span className="tabular shrink-0 text-xs text-chalk-soft">{ratingText(rank, rating)}</span>
+    </>,
+  );
+}
+
+/** Side by side, once there is room for it. */
+function TeamName({ abbr, name, rating, rank }: BoardGame["home"]) {
+  return linked(
+    abbr,
+    "block min-w-0 hyphens-none",
+    <>
+      <span className="chalk block text-[1.75rem] leading-tight font-bold break-words">
         {nickname(name)}
       </span>
       <span className="label mt-0.5 block normal-case tracking-normal text-[0.6875rem]">
         {city(name)}
       </span>
-      <span className="tabular mt-1 block text-xs text-chalk-soft">
-        {rank != null ? `#${rank}` : "–"}
-        <span className="mx-1 text-chalk-faint">·</span>
-        {rating != null ? `${rating > 0 ? "+" : "−"}${Math.abs(rating).toFixed(1)}` : "–"}
-      </span>
-    </>
-  );
-  return abbr ? (
-    <Link href={`/team/${abbr}`} className="block hover:opacity-80">
-      {body}
-    </Link>
-  ) : (
-    <div>{body}</div>
+      <span className="tabular mt-1 block text-xs text-chalk-soft">{ratingText(rank, rating)}</span>
+    </>,
   );
 }
 
@@ -78,16 +98,22 @@ export default function GameCard({ game }: { game: BoardGame }) {
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-start gap-3">
+      <div className="mt-2 sm:hidden">
+        <TeamRow {...game.away} />
+        <div className="chalk py-0.5 text-sm text-chalk-faint">at</div>
+        <TeamRow {...game.home} />
+      </div>
+
+      <div className="mt-3 hidden grid-cols-[1fr_auto_1fr] items-start gap-3 sm:grid">
         <TeamName {...game.away} />
         <span className="chalk self-center pt-1 text-base text-chalk-faint">at</span>
-        <div className="text-right">
+        <div className="min-w-0 text-right">
           <TeamName {...game.home} />
         </div>
       </div>
 
       {/* Flat panel. No texture, typewriter numerals, so the figures read. */}
-      <div className="slip -mx-4 mt-4 px-4 pt-3 pb-1 sm:-mx-5 sm:px-5">
+      <div className="slip -mx-4 -mb-4 mt-4 rounded-b-[2px] border-b-0 px-4 pt-3 pb-2 sm:-mx-5 sm:-mb-4 sm:px-5">
         <table className="tabular w-full text-[0.8125rem]">
           <thead>
             <tr className="label">
@@ -119,7 +145,7 @@ export default function GameCard({ game }: { game: BoardGame }) {
               <td className="chalk-accent py-2 text-right font-bold">
                 {chalkLine
                   ? chalkLine.team
-                    ? `${chalkLine.team} ${fmtSpread(Number(chalkLine.line.toFixed(1)))}`
+                    ? `${chalkLine.team} ${chalkLine.line < 0 ? "−" : "+"}${Math.abs(chalkLine.line).toFixed(1)}`
                     : "PK"
                   : "–"}
               </td>
