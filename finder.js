@@ -56,14 +56,6 @@ async function loadRoster(season) {
   return map.size ? map : null;
 }
 
-const MARKET = 'player_anytime_td';
-const MIN_TOUCHES = 6;      // per game, averaged over the last four
-const LAST_N = 4;
-const SKILL = new Set(['QB', 'RB', 'WR', 'TE']);
-
-// Which defensive touchdown rate is the relevant one for a player.
-const MATCHUP = { RB: 'BOTH', QB: 'RUSH', WR: 'PASS', TE: 'PASS' };
-
 const PAGE = 1000;
 async function selectAll(supabase, table, columns, tweak = (q) => q) {
   const rows = [];
@@ -105,6 +97,12 @@ async function main() {
     process.exit(1);
   }
 
+  // The board itself is built by the module the /tds page uses, so the CLI and
+  // the site cannot disagree about who qualifies or what a price is.
+  const { buildTdBoard, MARKET, MIN_TOUCHES, LAST_N } = await import(
+    './web/src/lib/tdBoard.mjs'
+  );
+
   const SUPABASE_URL = requireEnv('SUPABASE_URL');
   const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_KEY');
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
@@ -127,171 +125,34 @@ async function main() {
     return;
   }
 
-  // Season-to-date within the target season, falling back to the prior season
-  // when the target week is early enough that nothing has been played.
-  const seasonToDate = (rows) => rows.filter((r) => Number(r.season) === season && Number(r.week) < week);
-  const usingPriorSeason = seasonToDate(playerRows).length === 0;
-  const statsSeason = usingPriorSeason ? season - 1 : season;
-  const seasonSlice = (rows) =>
-    usingPriorSeason
-      ? rows.filter((r) => Number(r.season) === season - 1)
-      : seasonToDate(rows);
-
-  // Everything playable before the target week, oldest first, for last-N windows.
-  const chronological = (rows) =>
-    rows
-      .filter((r) => Number(r.season) === season - 1 || (Number(r.season) === season && Number(r.week) < week))
-      .sort((a, b) => Number(a.season) - Number(b.season) || Number(a.week) - Number(b.week));
-
-  // ---- defense aggregates and league ranks ----
-  const defBySeason = seasonSlice(defenseRows);
-  const defByTeam = new Map();
-  for (const r of defBySeason) {
-    if (!defByTeam.has(r.team)) {
-      defByTeam.set(r.team, { games: 0, rushTd: 0, passTd: 0, rzTrips: 0, rzTd: 0 });
-    }
-    const d = defByTeam.get(r.team);
-    d.games += 1;
-    d.rushTd += n(r.rush_td_allowed);
-    d.passTd += n(r.pass_td_allowed);
-    d.rzTrips += n(r.rz_trips_allowed);
-    d.rzTd += n(r.rz_td_allowed);
-  }
-  for (const d of defByTeam.values()) {
-    d.rushTdPg = div(d.rushTd, d.games);
-    d.passTdPg = div(d.passTd, d.games);
-    d.rzRate = div(d.rzTd, d.rzTrips);
-  }
-  // Rank 1 = softest, i.e. allows the most.
-  const rankBy = (key) => {
-    const sorted = [...defByTeam.entries()].sort((a, b) => (b[1][key] ?? -1) - (a[1][key] ?? -1));
-    return new Map(sorted.map(([team], i) => [team, i + 1]));
-  };
-  const rushRank = rankBy('rushTdPg');
-  const passRank = rankBy('passTdPg');
-
-  // ---- player aggregates ----
-  const byPlayer = new Map();
-  for (const r of chronological(playerRows)) {
-    if (!byPlayer.has(r.player_id)) byPlayer.set(r.player_id, []);
-    byPlayer.get(r.player_id).push(r);
-  }
-  const seasonByPlayer = new Map();
-  for (const r of seasonSlice(playerRows)) {
-    if (!seasonByPlayer.has(r.player_id)) seasonByPlayer.set(r.player_id, { rushTd: 0, recTd: 0 });
-    const s = seasonByPlayer.get(r.player_id);
-    s.rushTd += n(r.rush_td);
-    s.recTd += n(r.rec_td);
-  }
-
-  // Where each player is NOW, not where they last played.
-  const currentTeam = (playerId, fallback) => roster?.get(playerId)?.team ?? fallback;
-  const currentPos = (playerId, fallback) => roster?.get(playerId)?.position ?? fallback;
-  let moved = 0;
-  for (const [playerId, rows] of byPlayer) {
-    const last = rows[rows.length - 1];
-    if (roster?.has(playerId) && roster.get(playerId).team !== last.team) moved += 1;
-  }
-
-  // ---- props: newest capture per player per book, keyed by matchup ----
-  const propsByGame = new Map();
-  const latestCapture = new Map();
-  for (const p of propRows) {
-    const k = `${p.game_id}|${p.player_name}|${p.bookmaker}`;
-    const prev = latestCapture.get(k);
-    if (!prev || Date.parse(p.captured_at) > Date.parse(prev.captured_at)) latestCapture.set(k, p);
-  }
-  for (const p of latestCapture.values()) {
-    const home = teams.toAbbr(p.home_team);
-    const away = teams.toAbbr(p.away_team);
-    if (!home || !away) continue;
-    const key = `${away}@${home}`;
-    if (!propsByGame.has(key)) propsByGame.set(key, []);
-    propsByGame.get(key).push(p);
-  }
+  const board = buildTdBoard({
+    games, playerRows, defenseRows, propRows, roster, season, week,
+    toAbbr: teams.toAbbr, nameKey,
+  });
 
   console.log(`TD board — ${season} week ${week}`);
-  console.log(`  stat basis: ${statsSeason}${usingPriorSeason ? ` full season (no ${season} games before week ${week})` : ' season to date'}`);
+  console.log(`  stat basis: ${board.statsSeason}${board.usingPriorSeason ? ` full season (no ${season} games before week ${week})` : ' season to date'}`);
   console.log(`  qualifier: at least ${MIN_TOUCHES} touches per game (rushes + targets) over the last ${LAST_N} games`);
   console.log(`  defensive ranks: 1 = allows the most`);
-  console.log(roster
-    ? `  rosters: ${season} roster file (${moved} players changed team since their last game)`
+  console.log(board.hasRoster
+    ? `  rosters: ${season} roster file (${board.moved} players changed team since their last game)`
     : `  rosters: UNAVAILABLE, using each player's last-game team`);
   console.log();
 
-  const unmatchedProps = [];
-  const noPrice = [];
-  // Every nflverse player name we know about, for match reporting.
-  const leagueKeys = new Set(playerRows.map((r) => nameKey(r.player_name)).filter(Boolean));
-
-  for (const g of games) {
-    const key = `${g.away_team}@${g.home_team}`;
-    const gameProps = propsByGame.get(key) || [];
-
-    // Best available price per player across books.
-    const best = new Map();
-    for (const p of gameProps) {
-      if (p.outcome !== 'Yes') continue;
-      const k = nameKey(p.player_name);
-      if (!k) continue;
-      const d = decimal(p.price);
-      const cur = best.get(k);
-      if (!cur || (d != null && d > cur.decimal)) {
-        best.set(k, { decimal: d, price: p.price, book: p.bookmaker, name: p.player_name });
-      }
-    }
-
+  for (const g of board.games) {
     console.log(`${'='.repeat(112)}`);
-    console.log(`${g.away_team} @ ${g.home_team}   ${g.gameday} ${g.gametime}   ` +
-                `line ${g.spread_line >= 0 ? '+' : ''}${g.spread_line} / total ${g.total_line}` +
-                (gameProps.length ? '' : '   [no prop snapshot]'));
+    console.log(`${g.away} @ ${g.home}   ${g.gameday} ${g.gametime}   ` +
+                `line ${g.spreadLine >= 0 ? '+' : ''}${g.spreadLine} / total ${g.totalLine}` +
+                (g.hasProps ? '' : '   [no prop snapshot]'));
 
-    for (const side of ['away', 'home']) {
-      const team = side === 'away' ? g.away_team : g.home_team;
-      const opp = side === 'away' ? g.home_team : g.away_team;
-      const d = defByTeam.get(opp);
-
-      console.log(`\n  ${team} vs ${opp} defence — ` +
-                  `${f(d?.rushTdPg)} rush TD/g (rank ${d ? rushRank.get(opp) : '-'}), ` +
-                  `${f(d?.passTdPg)} pass TD/g (rank ${d ? passRank.get(opp) : '-'}), ` +
+    for (const side of g.sides) {
+      const d = side.defence;
+      console.log(`\n  ${side.team} vs ${side.opponent} defence — ` +
+                  `${f(d?.rushTdPg)} rush TD/g (rank ${d?.rushRank ?? '-'}), ` +
+                  `${f(d?.passTdPg)} pass TD/g (rank ${d?.passRank ?? '-'}), ` +
                   `RZ TD rate ${f(d?.rzRate)} (${d?.rzTd ?? 0}/${d?.rzTrips ?? 0})`);
 
-      const board = [];
-      for (const [playerId, rows] of byPlayer) {
-        const last = rows.slice(-LAST_N);
-        if (last.length === 0) continue;
-        const recent = last[last.length - 1];
-        if (currentTeam(playerId, recent.team) !== team) continue;
-        const pos = currentPos(playerId, recent.position);
-        if (!SKILL.has(pos)) continue;
-
-        const touches = last.reduce((a, r) => a + n(r.rush_att) + n(r.targets), 0);
-        const perGame = touches / last.length;
-        if (perGame < MIN_TOUCHES) continue;
-
-        const s = seasonByPlayer.get(playerId) || { rushTd: 0, recTd: 0 };
-        const k = nameKey(recent.player_name);
-        const price = k ? best.get(k) : null;
-        if (gameProps.length && !price) noPrice.push(`${recent.player_name} (${team})`);
-
-        board.push({
-          name: recent.player_name,
-          pos,
-          vs: MATCHUP[pos] || '-',
-          seasonRushTd: s.rushTd,
-          seasonRecTd: s.recTd,
-          l4RushTd: last.reduce((a, r) => a + n(r.rush_td), 0),
-          l4RecTd: last.reduce((a, r) => a + n(r.rec_td), 0),
-          glPg: last.reduce((a, r) => a + n(r.gl_touches), 0) / last.length,
-          rzPg: last.reduce((a, r) => a + n(r.rz_rush_att) + n(r.rz_targets), 0) / last.length,
-          touchesPg: perGame,
-          price,
-        });
-      }
-
-      board.sort((a, b) => b.glPg - a.glPg || b.rzPg - a.rzPg);
-
-      if (board.length === 0) {
+      if (side.players.length === 0) {
         console.log('    (no player clears the touch threshold)');
         continue;
       }
@@ -304,7 +165,7 @@ async function main() {
         pad('DruTD/g', 9, false) + pad('DpaTD/g', 9, false) + pad('Drz%', 7, false) +
         pad('price', 8, false) + '  book'
       );
-      for (const b of board) {
+      for (const b of side.players) {
         const showRush = b.vs === 'RUSH' || b.vs === 'BOTH';
         const showPass = b.vs === 'PASS' || b.vs === 'BOTH';
         console.log(
@@ -312,34 +173,27 @@ async function main() {
           pad(b.seasonRushTd, 7, false) + pad(b.seasonRecTd, 7, false) +
           pad(b.l4RushTd, 8, false) + pad(b.l4RecTd, 8, false) +
           pad(f(b.glPg), 8, false) + pad(f(b.rzPg), 8, false) + pad(f(b.touchesPg, 1), 7, false) +
-          pad(showRush ? `${f(d?.rushTdPg)}(${rushRank.get(opp) ?? '-'})` : '-', 9, false) +
-          pad(showPass ? `${f(d?.passTdPg)}(${passRank.get(opp) ?? '-'})` : '-', 9, false) +
+          pad(showRush ? `${f(d?.rushTdPg)}(${d?.rushRank ?? '-'})` : '-', 9, false) +
+          pad(showPass ? `${f(d?.passTdPg)}(${d?.passRank ?? '-'})` : '-', 9, false) +
           pad(f(d?.rzRate), 7, false) +
-          pad(fmtPrice(b.price?.price), 8, false) + '  ' + (b.price?.book ?? '-')
+          pad(fmtPrice(b.price), 8, false) + '  ' + (b.book ?? '-')
         );
       }
-    }
-
-    // Props names that match no nflverse player anywhere. Scoping this to the
-    // game's two rosters would flag every player who changed teams.
-    for (const [k, v] of best) {
-      if (TEAM_DEFENCE.test(v.name)) continue;
-      if (!leagueKeys.has(k)) unmatchedProps.push(`${v.name} (${key})`);
     }
     console.log();
   }
 
   console.log('='.repeat(112));
-  if (unmatchedProps.length) {
+  if (board.unmatchedProps.length) {
     console.log(`Props names with no match in ${season - 1}/${season} nflverse player data ` +
-                `(${unmatchedProps.length}); team defences excluded:`);
-    for (const u of [...new Set(unmatchedProps)].sort()) console.log(`  ${u}`);
+                `(${board.unmatchedProps.length}); team defences excluded:`);
+    for (const u of board.unmatchedProps) console.log(`  ${u}`);
   } else {
     console.log('Every props name matched an nflverse player.');
   }
-  if (noPrice.length) {
-    console.log(`\nBoard players with no anytime-TD price (${new Set(noPrice).size}):`);
-    for (const u of [...new Set(noPrice)].sort()) console.log(`  ${u}`);
+  if (board.noPrice.length) {
+    console.log(`\nBoard players with no anytime-TD price (${board.noPrice.length}):`);
+    for (const u of board.noPrice) console.log(`  ${u}`);
   }
 }
 
