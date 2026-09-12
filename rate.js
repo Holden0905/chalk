@@ -273,15 +273,18 @@ const round4 = (v) => (Number.isFinite(v) ? Number(v.toFixed(4)) : null);
  * Expected combined points. Each team's scoring is the league average nudged by
  * its own offense and by the defense it faces, so the two offenses add and the
  * two defenses subtract.
+ *
+ * totalScale shrinks or stretches the combined adjustment about the league
+ * average. Passing 0 returns the league average itself; passing 1 uses the
+ * adjustments raw.
  */
-function impliedTotal(home, away, leagueAvgTotal) {
-  return (
-    leagueAvgTotal +
+function impliedTotal(home, away, leagueAvgTotal, totalScale = 1) {
+  const adjustment =
     home.off_scoring_rating +
     away.off_scoring_rating -
     home.def_scoring_rating -
-    away.def_scoring_rating
-  );
+    away.def_scoring_rating;
+  return leagueAvgTotal + totalScale * adjustment;
 }
 
 const PAGE = 1000;

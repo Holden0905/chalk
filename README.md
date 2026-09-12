@@ -15,7 +15,7 @@ clients have no access.
 | `chalk_odds_snapshots` | One row per game per bookmaker per capture. Spread, total and both moneylines, stamped with `captured_at`. | `migrations/001_snapshots.sql` |
 | `chalk_results` | One row per graded game, keyed by `game_id`. Final score, the closing line used, and whether the home side covered / the game went over. | `migrations/002_results.sql` |
 | `chalk_team_weeks` | One row per team per game week, from nflverse play-by-play. Offense and defense efficiency splits, field position, points per trip inside the 40, points scored and allowed, and net special teams EPA. Foundation for an SP+-style rating. | `migrations/003_team_weeks.sql` |
-| `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating in points of expected margin, plus the scoring ratings and league average total that an implied total is built from. Computed **as of** that week from games played before it. | `migrations/004_ratings.sql`, `migrations/006_scoring.sql` |
+| `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating in points of expected margin, plus the scoring ratings and league average total that an implied total is built from (apply `total_scale` to the combined adjustment when reconstructing one). Computed **as of** that week from games played before it. | `migrations/004_ratings.sql`, `migrations/006_scoring.sql` |
 
 `chalk_results.game_id` is unique and matches `chalk_odds_snapshots.game_id`,
 so a result joins straight to that game's full line history.
@@ -120,24 +120,39 @@ for the totals model entirely, which was never fitted on anything.
 | Total 2024 | 256 | 10.290 | 9.723 | +0.568 |
 | Total 2025 | 256 | 10.635 | 10.262 | +0.374 |
 
-**Spreads are a dead end.** ATS is below break-even at every threshold in both
-seasons, and gets worse as the disagreement grows — 38.1% at 6+ points over the
-combined sample. That is the signature of a number that is wrong where it is
-loudest.
+**Spreads are a dead end.** ATS is below break-even at nearly every threshold
+in all three seasons, and gets worse as the disagreement grows.
 
-**Totals partially replicated out-of-sample.** O/U win rate by disagreement,
-combined 2024-2025: 51.8% / 52.6% / 56.2% / 58.9% / 60.3% / 60.0% at 1-6
-points. The rise with threshold holds in both seasons, but it is weaker in the
-out-of-sample year (2024 reached 56.5% at 4+, against 61.4% in 2025) and 2024
-on its own is **not** statistically significant. Combined, 4+ points sits about
-1.9 standard errors above break-even on 209 decided bets. That is suggestive,
-not settled.
+**The totals lead did not survive.** It looked real on 2024-2025 at
+`total_scale` 1.0: O/U rising with disagreement to 58.9% at 4+ points. Two
+checks killed it.
 
-The totals calibration slope is 0.512, meaning implied totals swing about twice
-as far as they should. The threshold filter may be working partly *because* of
-that over-spread rather than despite it.
+*Calibration.* Implied totals were swinging about twice as wide as they should
+(slope 0.512). Fitting `total_scale` to 0.4730 puts the slope at 1.000 and cuts
+the MAE gap from +0.471 to +0.142 — but the O/U edge goes with it:
 
-Neither market is a usable betting model.
+| total_scale | slope | MAE gap | O/U at 3+ | 4+ | 5+ | 6+ |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1.00 | 0.512 | +0.471 | 56.2% | 58.9% | 60.3% | 60.0% |
+| 0.75 | 0.670 | +0.228 | 58.3% | 59.9% | 56.8% | 58.7% |
+| 0.473 | 1.000 | +0.142 | 55.7% | 52.1% | 53.7% | 48.4% |
+
+The threshold filter was working *because* the numbers were over-spread, not
+despite it. A fixed point threshold also selects far fewer games as the scale
+shrinks (94 bets at 4+ versus 210), so the comparison is not like-for-like —
+but the practical question, whether betting a 4-point disagreement wins, is
+answered no once the number is honest.
+
+*A third season.* 2023 is out-of-sample for the 0.4730 fit and shows nothing:
+46.5 / 48.7 / 52.8 / 56.3 / 40.9 / 35.7% at 1-6 points. Across all three
+seasons the O/U record is 51.0 / 54.3 / 55.0 / 53.2 / 50.0 / 44.4% — no edge
+and no monotonic shape.
+
+`total_scale` is also unstable season to season: 0.4730 fits 2024-2025, 0.2334
+fits 2023, 0.4101 fits all three. A parameter that moves by a factor of two
+between samples is not measuring something durable.
+
+Neither market is a usable betting model, and the totals lead is closed.
 
 ### Residual buckets
 
@@ -152,11 +167,12 @@ size, early/late season, and cold-weather outdoor games. Descriptive only.
   they should. A separate scale for totals is the obvious next step.
 - **`rating_points_per_sd` is fitted on 2025 only.** One season, in-sample for
   the fit. Re-fit across 2024 and 2025 before trusting it.
-- **The O/U signal needs a third season.** It replicated in 2024 but weaker,
-  and 2024 alone is not significant. 2023 team-weeks are already ingested, so
-  a 2023 backtest is the cheapest next check.
-- **Spreads should probably be abandoned** rather than tuned. Two seasons,
-  every threshold below break-even, monotonically worse with confidence.
+- **Both markets are closed as leads.** Three seasons, calibrated and
+  uncalibrated, show no durable edge in either spreads or totals. Any next
+  attempt should change the inputs rather than retune this rating.
+- **The rating's inputs may simply be too coarse.** Everything is season-to-date
+  team aggregates with no personnel, injury, weather or in-game context. The
+  residual buckets are the only place structure has shown up.
 - **Confirm the `LA` / `SEA` / `SF` team name mappings** in `teams.js` against a
   real `chalk_odds_snapshots` row once those teams are captured.
 - **Fall back to ESPN's scoreboard API in `grade.js` for games older than three

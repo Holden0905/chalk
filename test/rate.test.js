@@ -216,6 +216,27 @@ t('a stronger defense pulls the implied total down', () => {
   assert.ok(impliedTotal(m.get('AAA'), m.get('BBB'), leagueAvgTotal) < leagueAvgTotal);
 });
 
+t('total_scale shrinks the adjustment about the league average', () => {
+  const rows = league();
+  for (const r of rows) {
+    const hot = r.team === 'AAA' || r.team === 'BBB';
+    r.off_points = hot ? 34 : 13;
+    r.def_points = hot ? 34 : 13;
+  }
+  const { ratings, leagueAvgTotal } = computeRatings(rows, 2025, 2, W0);
+  const m = new Map(ratings.map((r) => [r.team, r]));
+  const [h, a] = [m.get('AAA'), m.get('BBB')];
+
+  const full = impliedTotal(h, a, leagueAvgTotal, 1);
+  const half = impliedTotal(h, a, leagueAvgTotal, 0.5);
+  const none = impliedTotal(h, a, leagueAvgTotal, 0);
+
+  assert.ok(Math.abs(none - leagueAvgTotal) < 1e-9, 'scale 0 is the league average');
+  assert.ok(Math.abs((half - leagueAvgTotal) - (full - leagueAvgTotal) / 2) < 1e-9,
+    'scale 0.5 halves the distance from the league average');
+  assert.equal(impliedTotal(h, a, leagueAvgTotal), full, 'scale defaults to 1');
+});
+
 // --- helpers ----------------------------------------------------------------
 t('zScores centre and normalise', () => {
   const z = zScores([1, 2, 3, 4, 5]);

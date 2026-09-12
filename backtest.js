@@ -91,12 +91,17 @@ function printRecord(title, rows, edgeOf, resultOf) {
 }
 
 async function main() {
-  const seasons = process.argv.slice(2).map(Number).filter(Number.isInteger);
+  const args = process.argv.slice(2);
+  const scaleArg = args.find((a) => a.startsWith('--total-scale='));
+  const seasons = args.filter((a) => !a.startsWith('--')).map(Number).filter(Number.isInteger);
   if (seasons.length === 0) seasons.push(2025);
 
   const SUPABASE_URL = requireEnv('SUPABASE_URL');
   const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_KEY');
   const weights = loadWeights();
+  // An override lets the shape of the curve be inspected without editing the
+  // weights file.
+  const totalScale = scaleArg ? Number(scaleArg.split('=')[1]) : weights.total_scale ?? 1;
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { persistSession: false },
@@ -113,7 +118,8 @@ async function main() {
 
   console.log(`Backtest ${seasons.join(' + ')}, weeks ${FIRST_WEEK}-${LAST_WEEK}`);
   console.log(`  weights unchanged: rating_points_per_sd ${weights.rating_points_per_sd}, ` +
-              `home_field ${weights.home_field}, scoring_blend ${weights.scoring_blend}`);
+              `home_field ${weights.home_field}, scoring_blend ${weights.scoring_blend}, ` +
+              `total_scale ${totalScale}${scaleArg ? ' (overridden)' : ''}`);
   for (const s of seasons) {
     const prior = teamWeeks.filter((r) => Number(r.season) === s - 1).length;
     console.log(`  ${s}: ${prior} prior-season (${s - 1}) team-weeks available for the blend`);
@@ -148,7 +154,8 @@ async function main() {
           implied: home.team_rating - away.team_rating + hf,
           vegas: Number(g.spread_line),
           actual: Number(g.home_score) - Number(g.away_score),
-          impliedTotal: impliedTotal(home, away, leagueAvgTotal),
+          leagueAvgTotal,
+          totalAdj: impliedTotal(home, away, 0, 1), // the combined adjustment alone
           vegasTotal: Number(g.total_line),
           actualTotal: Number(g.home_score) + Number(g.away_score),
         });
@@ -189,7 +196,25 @@ async function main() {
   );
 
   // ---- totals ----
-  const tRows = rows.filter((r) => Number.isFinite(r.vegasTotal) && Number.isFinite(r.impliedTotal));
+  const totalAt = (r, scale) => r.leagueAvgTotal + scale * r.totalAdj;
+  const tRows = rows.filter(
+    (r) => Number.isFinite(r.vegasTotal) && Number.isFinite(r.leagueAvgTotal) && Number.isFinite(r.totalAdj)
+  );
+  for (const r of tRows) r.impliedTotal = totalAt(r, totalScale);
+
+  // Fit the scale that puts the calibration slope at 1.000. The league average
+  // term is not constant across weeks, so the slope is not exactly 1/scale and
+  // this is solved numerically rather than in closed form.
+  const slopeAt = (scale) =>
+    slope(tRows.map((r) => totalAt(r, scale)), tRows.map((r) => r.actualTotal));
+  let lo = 0.01;
+  let hi = 5;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    if (slopeAt(mid) > 1) lo = mid;
+    else hi = mid;
+  }
+  const fittedScale = (lo + hi) / 2;
   console.log('Totals accuracy');
   console.log(`  ${pad('season', 8)}${pad('games', 7)}${pad('our MAE', 10)}${pad('vegas MAE', 11)}${pad('diff', 9)}`);
   for (const season of seasons) {
@@ -206,6 +231,7 @@ async function main() {
   const kT = slope(tRows.map((r) => r.impliedTotal), tRows.map((r) => r.actualTotal));
   console.log(`  calibration slope ${kT.toFixed(3)} (vegas ${slope(tRows.map((r) => r.vegasTotal), tRows.map((r) => r.actualTotal)).toFixed(3)}), ` +
               `our SD ${sd(tRows.map((r) => r.impliedTotal)).toFixed(2)}, vegas SD ${sd(tRows.map((r) => r.vegasTotal)).toFixed(2)}`);
+  console.log(`  total_scale for slope 1.000 on this sample: ${fittedScale.toFixed(4)} (currently ${totalScale})`);
   console.log();
 
   printRecord(
