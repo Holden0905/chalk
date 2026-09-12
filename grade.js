@@ -10,13 +10,14 @@ function requireEnv(name) {
   return raw.trim();
 }
 
-const SUPABASE_URL = requireEnv('SUPABASE_URL');
-const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_KEY');
-const ODDS_API_KEY = requireEnv('ODDS_API_KEY');
-
-const SCORES_URL =
-  'https://api.the-odds-api.com/v4/sports/americanfootball_nfl/scores' +
-  `?daysFrom=3&apiKey=${ODDS_API_KEY}`;
+// Credentials are read inside main() rather than at import, so the pure
+// helpers below can be required by the tests without a .env present.
+function scoresUrl(apiKey) {
+  return (
+    'https://api.the-odds-api.com/v4/sports/americanfootball_nfl/scores' +
+    `?daysFrom=3&apiKey=${apiKey}`
+  );
+}
 
 // Which book's number counts as the closing line, best first.
 const BOOK_PRIORITY = ['draftkings', 'fanduel'];
@@ -82,6 +83,10 @@ function teamScore(final, team) {
 }
 
 async function main() {
+  const SUPABASE_URL = requireEnv('SUPABASE_URL');
+  const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_KEY');
+  const ODDS_API_KEY = requireEnv('ODDS_API_KEY');
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { persistSession: false },
   });
@@ -132,7 +137,7 @@ async function main() {
     return;
   }
 
-  const res = await fetch(SCORES_URL);
+  const res = await fetch(scoresUrl(ODDS_API_KEY));
   if (!res.ok) {
     console.error(`Scores API ${res.status}: ${await res.text()}`);
     process.exit(1);
