@@ -4,20 +4,21 @@ name: snapshot
 # While EDT is in effect (UTC-4) they line up as:
 #   14:00 UTC daily      -> 10:00 AM ET  baseline capture
 #   Fri 00:00 UTC        -> Thu  8:00 PM ET  (TNF)
-#   Sun 16:45 UTC        -> Sun 12:45 PM ET  (early slate)
+#   Sun 16:30 UTC        -> Sun 12:30 PM ET  (early slate)
 #   Sun 20:00 UTC        -> Sun  4:00 PM ET  (late afternoon slate)
 #   Mon 00:00 UTC        -> Sun  8:00 PM ET  (SNF)
 #   Tue 00:00 UTC        -> Mon  8:00 PM ET  (MNF)
 # DST ends Sun Nov 1 2026, when ET becomes EST (UTC-5). Cron here is fixed to
 # UTC, so from that date every slot lands one hour EARLIER in ET -- the Sunday
-# early capture becomes 11:45 AM ET, roughly 75 minutes before a 1:00 PM
-# kickoff instead of 15. Shift these expressions back an hour if the captures
+# early capture becomes 11:30 AM ET, roughly 90 minutes before a 1:00 PM
+# kickoff instead of 30. Shift these expressions back an hour if the captures
 # need to stay tight to kickoff through the end of the season.
 on:
   schedule:
     - cron: '0 14 * * *'   # daily baseline
     - cron: '0 0 * * 5'    # Thu night ET (TNF)
-    - cron: '45 16 * * 0'  # Sun early slate ET
+    - cron: '30 16 * * 0'  # Sun early slate ET (30 min of margin vs. 1:00 PM ET kickoff,
+                           # since GitHub delays scheduled runs under load)
     - cron: '0 20 * * 0'   # Sun late afternoon slate ET
     - cron: '0 0 * * 1'    # Sun night ET (SNF)
     - cron: '0 0 * * 2'    # Mon night ET (MNF)
