@@ -1,13 +1,21 @@
 import Link from "next/link";
-import { getTeamsIndex } from "@/lib/teamData";
+import SeasonToggle from "@/components/SeasonToggle";
+import { getTeamsIndex, seasonChoices } from "@/lib/teamData";
 import { NFLVERSE_TO_ODDS, nickname } from "@/lib/teams";
 import { signed } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Teams · Chalk" };
 
-export default async function TeamsPage() {
-  const { teams, ratingWeek, season, gradedGames } = await getTeamsIndex();
+export default async function TeamsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ season?: string }>;
+}) {
+  const choices = seasonChoices();
+  const asked = Number((await searchParams).season);
+  const wanted = choices.includes(asked) ? asked : choices[0];
+  const { teams, ratingWeek, season, gradedGames } = await getTeamsIndex(wanted);
 
   return (
     <>
@@ -18,13 +26,15 @@ export default async function TeamsPage() {
         </span>
       </div>
 
-      <p className="mt-3 max-w-prose text-sm text-chalk-soft">
+      <SeasonToggle path="/teams" seasons={choices} active={season} />
+
+      <p className="mt-4 max-w-prose text-sm text-chalk-soft">
         All 32 by team rating, in points of expected margin against an average
         team. <span className="chalk-accent">Offence</span>, defence and special
         teams sum to the total.
       </p>
 
-      <div className="board-card mt-6 overflow-hidden">
+      <div className="board-card mt-5 overflow-hidden">
         <div className="slip overflow-x-auto border-t-0">
           <table className="tabular w-full min-w-[640px] text-[0.8125rem]">
             <thead>

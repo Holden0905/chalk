@@ -71,12 +71,20 @@ function marketRecords(results: ResultRow[]) {
 const show = (r: WLRecord | undefined): string =>
   !r || r.wins + r.losses + r.ties === 0 ? "–" : `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}`;
 
-export async function getTeamsIndex(): Promise<TeamsIndex> {
-  const season = currentSeason();
+/** Seasons the toggles offer: the current one and the one before it. */
+export function seasonChoices(): number[] {
+  const now = currentSeason();
+  return [now, now - 1];
+}
+
+export async function getTeamsIndex(seasonArg?: number): Promise<TeamsIndex> {
+  const season = seasonArg ?? currentSeason();
   const [{ current, week }, teamWeeks, results] = await Promise.all([
     loadRatings(season),
     selectAll<TeamWeek>("chalk_team_weeks", "*", (q) => q.eq("season", season)),
-    selectAll<ResultRow>("chalk_results", "*"),
+    selectAll<ResultRow>("chalk_results", "*", (q) =>
+      q.gte("commence_time", `${season}-03-01`).lt("commence_time", `${season + 1}-03-01`),
+    ),
   ]);
 
   const weeksByTeam = new Map<string, TeamWeek[]>();
@@ -149,7 +157,9 @@ export async function getTeam(abbr: string): Promise<TeamDetail | null> {
   const [ratings, teamWeeks, results] = await Promise.all([
     selectAll<RatingRow>("chalk_ratings", "*", (q) => q.in("season", [prior, season])),
     selectAll<TeamWeek>("chalk_team_weeks", "*", (q) => q.eq("season", season)),
-    selectAll<ResultRow>("chalk_results", "*"),
+    selectAll<ResultRow>("chalk_results", "*", (q) =>
+      q.gte("commence_time", `${season}-03-01`).lt("commence_time", `${season + 1}-03-01`),
+    ),
   ]);
 
   const seasonRatings = ratings.filter((r) => Number(r.season) === season);
@@ -234,8 +244,8 @@ export type StatsRow = {
   rushTdAllowedPg: number | null; passTdAllowedPg: number | null;
 };
 
-export async function getStats(): Promise<{ season: number; rows: StatsRow[] }> {
-  const season = currentSeason();
+export async function getStats(seasonArg?: number): Promise<{ season: number; rows: StatsRow[] }> {
+  const season = seasonArg ?? currentSeason();
   const [teamWeeks, defenseWeeks] = await Promise.all([
     selectAll<TeamWeek>("chalk_team_weeks", "*", (q) => q.eq("season", season)),
     selectAll<DefenseWeek>("chalk_defense_weeks", "*", (q) => q.eq("season", season)),
