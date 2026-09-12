@@ -61,7 +61,7 @@ const OU_ROWS = [
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-12 first:mt-8">
-      <h2 className="chalk text-3xl leading-none font-bold sm:text-4xl">{title}</h2>
+      <h2 className="chalk d-section font-bold">{title}</h2>
       <div className="mt-4 max-w-prose space-y-3 text-[0.9375rem] leading-relaxed text-chalk-soft">
         {children}
       </div>
@@ -78,7 +78,7 @@ export default function AboutPage() {
 
   return (
     <>
-      <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">About</h1>
+      <h1 className="chalk d-title font-bold">About</h1>
       <p className="mt-3 max-w-prose text-sm text-chalk-soft">
         Chalk tracks NFL numbers so I can look at them. It is a lens, not a picker.
       </p>

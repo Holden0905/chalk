@@ -20,7 +20,7 @@ export default async function StatsPage({
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">Stats</h1>
+        <h1 className="chalk d-title font-bold">Stats</h1>
         <span className="label text-right">
           {season === choices[0] ? "season to date" : "full season"}
         </span>

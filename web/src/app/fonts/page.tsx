@@ -43,7 +43,7 @@ function Specimen({ label, cssVar, note }: { label: string; cssVar: string; note
 
       <div className="board-card mt-3 px-4 py-4">
         {/* header */}
-        <div className="chalk text-[2rem] leading-none font-bold tracking-wide">Chalk</div>
+        <div className="chalk d-wordmark font-bold tracking-wide">Chalk</div>
 
         {/* nav */}
         <nav className="-mx-1 mt-3 overflow-x-auto">
@@ -51,7 +51,7 @@ function Specimen({ label, cssVar, note }: { label: string; cssVar: string; note
             {NAV.map((item, i) => (
               <li key={item}>
                 <span
-                  className="chalk nav-link block px-3 pb-2 pt-1.5 text-lg leading-none"
+                  className="chalk nav-link d-nav block px-3 pb-2 pt-1.5"
                   aria-current={i === 0 ? "page" : undefined}
                 >
                   {item}
@@ -63,7 +63,7 @@ function Specimen({ label, cssVar, note }: { label: string; cssVar: string; note
         <hr className="chalk-rule mt-1" />
 
         {/* page title */}
-        <h3 className="chalk mt-4 text-4xl leading-none font-bold">The Board</h3>
+        <h3 className="chalk d-title mt-4 font-bold">The Board</h3>
 
         {/* mixed case and caps */}
         <p className="chalk mt-4 text-2xl leading-tight">
@@ -86,7 +86,7 @@ function Specimen({ label, cssVar, note }: { label: string; cssVar: string; note
 export default function FontsPage() {
   return (
     <div className={CANDIDATES.map((c) => c.font.variable).join(" ")}>
-      <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">Display faces</h1>
+      <h1 className="chalk d-title font-bold">Display faces</h1>
       <p className="mt-3 max-w-prose text-sm text-chalk-soft">
         The same header, nav, page title and Board card in each candidate, with
         the face in use first to compare against. Courier Prime stays on the

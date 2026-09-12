@@ -21,7 +21,7 @@ export default function SeasonToggle({
           key={s}
           href={s === seasons[0] ? path : `${path}?season=${s}`}
           aria-current={s === active ? "page" : undefined}
-          className="chalk nav-link px-3 pb-2 pt-1.5 text-xl leading-none"
+          className="chalk nav-link d-nav px-3 pb-2 pt-1.5"
         >
           {s}
         </Link>

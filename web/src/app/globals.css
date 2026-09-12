@@ -176,6 +176,37 @@ body > * {
   }
 }
 
+/* --- display sizes ------------------------------------------------------- */
+
+/*
+ * One place to calibrate the chalk lettering. Sizes are expressed so the face
+ * in use reads at a fixed cap height, which is what the eye registers as "how
+ * big is that word", rather than at a fixed em size.
+ *
+ * Rock Salt renders a cap height of 1.13em; Kalam 300 renders 0.70em. Moving
+ * from one to the other therefore needs a 1.61x bump to look unchanged, which
+ * is the factor baked into the numbers below. Swapping the face again means
+ * measuring its cap height and rescaling these, and nothing else.
+ *
+ * Line heights are set well below 1 because the larger em box would otherwise
+ * open up the vertical rhythm that the smaller, taller face used to hold.
+ */
+.d-wordmark { font-size: 3.2rem; line-height: 0.72; }
+.d-title    { font-size: 3.5rem; line-height: 0.78; }
+.d-section  { font-size: 2.9rem; line-height: 0.8; }
+.d-nav      { font-size: 1.8rem; line-height: 0.9; }
+.d-day      { font-size: 2rem;   line-height: 0.85; }
+.d-team     { font-size: 2.3rem; line-height: 0.85; }
+.d-team-row { font-size: 1.7rem; line-height: 0.9; }
+.d-at       { font-size: 1.4rem; line-height: 1; }
+
+@media (min-width: 640px) {
+  .d-wordmark { font-size: 3.6rem; }
+  .d-title    { font-size: 4.6rem; }
+  .d-section  { font-size: 3.5rem; }
+  .d-team     { font-size: 2.7rem; }
+}
+
 /* --- nav ----------------------------------------------------------------- */
 
 /* The active item is brighter chalk with a drawn underline. No box. */

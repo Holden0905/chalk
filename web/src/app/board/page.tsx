@@ -19,7 +19,7 @@ export default async function BoardPage() {
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">The Board</h1>
+        <h1 className="chalk d-title font-bold">The Board</h1>
         <span className="label text-right">
           {board.ratingWeek != null ? `ratings as of wk ${board.ratingWeek}` : "no ratings yet"}
         </span>
@@ -34,7 +34,7 @@ export default async function BoardPage() {
 
       {board.games.length === 0 ? (
         <div className="panel mt-8 px-4 py-8 text-center">
-          <p className="chalk text-2xl">Nothing on the board</p>
+          <p className="chalk d-section">Nothing on the board</p>
           <p className="mt-2 text-sm text-chalk-soft">
             No games in this week&rsquo;s window. Run the snapshot job.
           </p>
@@ -43,7 +43,7 @@ export default async function BoardPage() {
         <div className="mt-7 space-y-8">
           {[...days.entries()].map(([day, games]) => (
             <section key={day}>
-              <h2 className="chalk text-xl font-bold text-chalk-soft">{day}</h2>
+              <h2 className="chalk d-day font-bold text-chalk-soft">{day}</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {games.map((game) => (
                   <GameCard key={game.gameId} game={game} />

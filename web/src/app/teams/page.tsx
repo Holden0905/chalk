@@ -20,7 +20,7 @@ export default async function TeamsPage({
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">Teams</h1>
+        <h1 className="chalk d-title font-bold">Teams</h1>
         <span className="label text-right">
           {ratingWeek != null ? `${season} · ratings as of wk ${ratingWeek}` : "no ratings yet"}
         </span>
@@ -59,7 +59,7 @@ export default async function TeamsPage({
                   </td>
                   <td className="py-0 pl-2">
                     <Link href={`/team/${t.abbr}`} className="block py-2.5">
-                      <span className="chalk text-[1.0625rem] leading-none">
+                      <span className="chalk d-team-row">
                         {nickname(NFLVERSE_TO_ODDS[t.abbr] ?? t.abbr)}
                       </span>
                       <span className="ml-2 text-[0.6875rem] text-chalk-faint">{t.abbr}</span>

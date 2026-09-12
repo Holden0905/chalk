@@ -20,7 +20,7 @@ export default function Nav() {
   return (
     <header className="pt-4">
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
-        <Link href="/board" className="chalk block text-[2rem] leading-none font-bold tracking-wide sm:text-4xl">
+        <Link href="/board" className="chalk d-wordmark block font-bold tracking-wide">
           Chalk
         </Link>
 
@@ -33,7 +33,7 @@ export default function Nav() {
                   <Link
                     href={link.href}
                     aria-current={active ? "page" : undefined}
-                    className="chalk nav-link block px-3 pb-2 pt-1.5 text-lg leading-none"
+                    className="chalk nav-link d-nav block px-3 pb-2 pt-1.5"
 
                   >
                     {link.label}

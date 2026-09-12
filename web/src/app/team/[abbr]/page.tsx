@@ -49,10 +49,10 @@ export default async function TeamPage({ params }: { params: Promise<{ abbr: str
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="label">{city(name)}</p>
-          <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">{nickname(name)}</h1>
+          <h1 className="chalk d-title font-bold">{nickname(name)}</h1>
         </div>
         <div className="text-right">
-          <p className="chalk-accent chalk text-3xl leading-none font-bold sm:text-4xl">
+          <p className="chalk-accent chalk d-section font-bold">
             {signed(team.teamRating, 1)}
           </p>
           <p className="label mt-1">

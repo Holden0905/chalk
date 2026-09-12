@@ -117,7 +117,7 @@ export default function StatsTable({ rows }: { rows: StatsRow[] }) {
             type="button"
             onClick={() => { setSide(s); setSortKey("team"); setDesc(false); }}
             aria-current={side === s ? "page" : undefined}
-            className="chalk nav-link px-3 pb-2 pt-1.5 text-xl leading-none"
+            className="chalk nav-link d-nav px-3 pb-2 pt-1.5"
           >
             {s === "off" ? "Offence" : "Defence"}
           </button>
@@ -148,7 +148,7 @@ export default function StatsTable({ rows }: { rows: StatsRow[] }) {
                 <tr key={row.abbr} className="border-t border-panel-rule hover:bg-white/[0.03]">
                   <th scope="row" className="sticky left-0 z-10 bg-panel p-0 text-left font-normal">
                     <Link href={`/team/${row.abbr}`} className="block px-3 py-2.5">
-                      <span className="chalk text-[1rem] leading-none">
+                      <span className="chalk d-team-row">
                         {nickname(NFLVERSE_TO_ODDS[row.abbr] ?? row.abbr)}
                       </span>
                       <span className="ml-1.5 text-[0.625rem] text-chalk-faint">{row.abbr}</span>

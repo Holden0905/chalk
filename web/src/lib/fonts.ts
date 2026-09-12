@@ -14,8 +14,8 @@ import {
 // The app's display face. Change the function called on the next line to swap
 // it everywhere. See /fonts to compare candidates.
 // ─────────────────────────────────────────────────────────────────────────────
-export const display = Rock_Salt({
-  weight: "400",
+export const display = Kalam({
+  weight: "300",
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
@@ -48,9 +48,9 @@ const shadowsIntoLight = Shadows_Into_Light({ weight: "400", subsets: ["latin"],
 const nothingYouCouldDo = Nothing_You_Could_Do({ weight: "400", subsets: ["latin"], variable: "--font-c7", display: "swap" });
 
 export const CANDIDATES = [
-  { key: "Rock_Salt", label: "Rock Salt", note: "in use now", font: rockSalt, cssVar: "--font-c1" },
+  { key: "Rock_Salt", label: "Rock Salt", note: "", font: rockSalt, cssVar: "--font-c1" },
   { key: "Just_Another_Hand", label: "Just Another Hand", note: "", font: justAnotherHand, cssVar: "--font-c2" },
-  { key: "Kalam", label: "Kalam 300", note: "weight 300", font: kalam, cssVar: "--font-c3" },
+  { key: "Kalam", label: "Kalam 300", note: "in use now", font: kalam, cssVar: "--font-c3" },
   { key: "Caveat", label: "Caveat", note: "", font: caveat, cssVar: "--font-c4" },
   { key: "Covered_By_Your_Grace", label: "Covered By Your Grace", note: "", font: coveredByYourGrace, cssVar: "--font-c5" },
   { key: "Shadows_Into_Light", label: "Shadows Into Light", note: "", font: shadowsIntoLight, cssVar: "--font-c6" },

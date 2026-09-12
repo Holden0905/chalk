@@ -9,7 +9,7 @@ export default async function LoginPage({
 
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center">
-      <h1 className="chalk text-6xl leading-none font-bold">Chalk</h1>
+      <h1 className="chalk d-wordmark font-bold">Chalk</h1>
       <hr className="chalk-rule mt-4 w-48" />
 
       <form action="/api/login" method="post" className="mt-8 w-full max-w-xs">
@@ -28,7 +28,7 @@ export default async function LoginPage({
         />
         <button
           type="submit"
-          className="chalk mt-4 w-full rounded-sm border border-chalk/25 px-3 py-2.5 text-xl font-bold hover:border-butter hover:text-butter"
+          className="chalk d-nav mt-4 w-full rounded-sm border border-chalk/25 px-3 py-2.5 font-bold hover:border-butter hover:text-butter"
         >
           Enter
         </button>

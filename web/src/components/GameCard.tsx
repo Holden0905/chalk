@@ -23,34 +23,17 @@ function linked(abbr: string | null, className: string, children: React.ReactNod
   );
 }
 
-/** Stacked, for phone width: the name gets the whole card width. */
+/** One team: name and city on the left, rank and rating on the right. */
 function TeamRow({ abbr, name, rating, rank }: BoardGame["home"]) {
   return linked(
     abbr,
-    "flex items-baseline justify-between gap-3 py-0.5",
+    "flex flex-wrap items-baseline justify-between gap-x-3 py-0.5",
     <>
       <span className="min-w-0">
-        <span className="chalk text-[1.5rem] leading-tight font-bold">{nickname(name)}</span>
+        <span className="chalk d-team font-bold whitespace-nowrap">{nickname(name)}</span>
         <span className="label ml-2 normal-case tracking-normal text-[0.6875rem]">{city(name)}</span>
       </span>
       <span className="tabular shrink-0 text-xs text-chalk-soft">{ratingText(rank, rating)}</span>
-    </>,
-  );
-}
-
-/** Side by side, once there is room for it. */
-function TeamName({ abbr, name, rating, rank }: BoardGame["home"]) {
-  return linked(
-    abbr,
-    "block min-w-0 hyphens-none",
-    <>
-      <span className="chalk block text-[1.75rem] leading-tight font-bold break-words">
-        {nickname(name)}
-      </span>
-      <span className="label mt-0.5 block normal-case tracking-normal text-[0.6875rem]">
-        {city(name)}
-      </span>
-      <span className="tabular mt-1 block text-xs text-chalk-soft">{ratingText(rank, rating)}</span>
     </>,
   );
 }
@@ -98,18 +81,13 @@ export default function GameCard({ game }: { game: BoardGame }) {
         )}
       </div>
 
-      <div className="mt-2 sm:hidden">
+      {/* Stacked at every width. Side by side puts each name in half a card,
+          which is narrower than "Commanders" or "Buccaneers" at display size
+          and breaks them mid-word. */}
+      <div className="mt-2">
         <TeamRow {...game.away} />
-        <div className="chalk py-0.5 text-sm text-chalk-faint">at</div>
+        <div className="chalk d-at py-0.5 text-chalk-faint">at</div>
         <TeamRow {...game.home} />
-      </div>
-
-      <div className="mt-3 hidden grid-cols-[1fr_auto_1fr] items-start gap-3 sm:grid">
-        <TeamName {...game.away} />
-        <span className="chalk self-center pt-1 text-base text-chalk-faint">at</span>
-        <div className="min-w-0 text-right">
-          <TeamName {...game.home} />
-        </div>
       </div>
 
       {/* Flat panel. No texture, typewriter numerals, so the figures read. */}
