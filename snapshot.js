@@ -1,13 +1,42 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const { SUPABASE_URL, SUPABASE_SERVICE_KEY, ODDS_API_KEY } = process.env;
-
-for (const [name, value] of Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_KEY, ODDS_API_KEY })) {
-  if (!value) {
-    console.error(`Missing ${name} in .env`);
+// Values pasted into a CI secret store often pick up surrounding whitespace,
+// which turns into an unresolvable hostname and a bare "fetch failed" later.
+function requireEnv(name) {
+  const raw = process.env[name];
+  if (!raw || !raw.trim()) {
+    console.error(`Missing ${name}`);
     process.exit(1);
   }
+  if (raw !== raw.trim()) {
+    console.warn(`Note: ${name} had surrounding whitespace; trimmed.`);
+  }
+  return raw.trim();
+}
+
+const SUPABASE_URL = requireEnv('SUPABASE_URL');
+const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_KEY');
+const ODDS_API_KEY = requireEnv('ODDS_API_KEY');
+
+// Check the shape up front so a bad value names itself instead of surfacing as
+// a connection error. Nothing secret is printed.
+let supabaseHost;
+try {
+  const parsed = new URL(SUPABASE_URL);
+  supabaseHost = parsed.hostname;
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`expected https, got ${parsed.protocol}`);
+  }
+  if (!parsed.hostname.endsWith('.supabase.co')) {
+    throw new Error('hostname does not end in .supabase.co');
+  }
+} catch (err) {
+  console.error(
+    `SUPABASE_URL is not a usable Supabase URL (${err.message}). ` +
+      `Length ${SUPABASE_URL.length}, begins ${JSON.stringify(SUPABASE_URL.slice(0, 8))}.`
+  );
+  process.exit(1);
 }
 
 const ODDS_URL =
@@ -72,6 +101,12 @@ async function main() {
 
   if (error) {
     console.error(`Insert failed: ${error.message}`);
+    // supabase-js flattens transport failures into a bare message; walk down to
+    // the underlying socket error so the real reason (DNS, TLS, refused) shows.
+    for (let c = error.cause; c; c = c.cause) {
+      console.error(`  cause: ${c.code || ''} ${c.message || c}`.trim());
+    }
+    console.error(`  target host: ${supabaseHost}`);
     process.exit(1);
   }
 
