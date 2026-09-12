@@ -1,2 +1,8 @@
 .env
 node_modules/
+
+# Next.js build output and local env live under web/
+web/.next/
+web/out/
+web/.vercel/
+web/next-env.d.ts

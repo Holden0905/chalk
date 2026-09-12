@@ -247,6 +247,28 @@ Two limits worth knowing:
   those are the only touchdowns `chalk_player_weeks` carries. A return or
   defensive touchdown would not settle a ticket most books would pay.
 
+## Web app
+
+`web/` is a Next.js front end for all of this, deployed to Vercel. Mobile
+first, installable on a phone, gated behind a single password.
+
+```bash
+cd web
+npm install
+cp ../.env .env.local
+echo 'CHALK_PASSWORD=pick-something' >> .env.local
+npm run dev
+```
+
+Phase 1 ships the app shell, the Board and the About page. Teams, Stats, TDs
+and Bets are in the nav but stubbed. See `web/README.md` for the four
+environment variables and the Vercel setup, the important part being that the
+project Root Directory must be `web`.
+
+Data is read server side only, with the service key, because every `chalk_*`
+table has RLS on with no policies. Nothing with a key in it is ever sent to the
+browser.
+
 ## Backlog
 
 - **The totals scale is over-spread.** Spread calibration is fitted at 1.000
