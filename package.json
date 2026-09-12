@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/grade.test.js",
+    "test": "node test/grade.test.js && node test/ingest_pbp.test.js",
     "snapshot": "node snapshot.js",
-    "grade": "node grade.js"
+    "grade": "node grade.js",
+    "ingest:pbp": "node ingest_pbp.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,7 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
+    "csv-parse": "^7.0.2",
     "dotenv": "^17.4.2"
   }
 }

@@ -1,0 +1,33 @@
+name: ingest-pbp
+
+# Tuesday 13:00 UTC, an hour after the grade run, by which point nflverse has
+# published the weekend's play-by-play. With no season input the script infers
+# the current season (January and February belong to the prior season).
+on:
+  schedule:
+    - cron: '0 13 * * 2'
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season to ingest (e.g. 2025). Blank uses the current season.'
+        required: false
+        type: string
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run ingest:pbp -- ${{ inputs.season }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
