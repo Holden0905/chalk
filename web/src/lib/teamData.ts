@@ -7,6 +7,14 @@ import {
   type DefenseWeek, type Ranked, type SideAgg, type TeamWeek, type Record as WLRecord,
 } from "./aggregate";
 
+/**
+ * Regular season only. chalk_team_weeks carries weeks 1 to 22, so an unfiltered
+ * count gives a playoff team 20 games and a 14-6 record against 17 games
+ * played. Everything counted or averaged on Teams, Stats and a team page stops
+ * at week 18.
+ */
+export const LAST_REGULAR_WEEK = 18;
+
 export type RatingRow = {
   season: number; week: number; team: string;
   team_rating: string | number | null; offense_rating: string | number | null;
@@ -81,7 +89,9 @@ export async function getTeamsIndex(seasonArg?: number): Promise<TeamsIndex> {
   const season = seasonArg ?? currentSeason();
   const [{ current, week }, teamWeeks, results] = await Promise.all([
     loadRatings(season),
-    selectAll<TeamWeek>("chalk_team_weeks", "*", (q) => q.eq("season", season)),
+    selectAll<TeamWeek>("chalk_team_weeks", "*", (q) =>
+      q.eq("season", season).lte("week", LAST_REGULAR_WEEK),
+    ),
     selectAll<ResultRow>("chalk_results", "*", (q) =>
       q.gte("commence_time", `${season}-03-01`).lt("commence_time", `${season + 1}-03-01`),
     ),
@@ -156,7 +166,9 @@ export async function getTeam(abbr: string): Promise<TeamDetail | null> {
 
   const [ratings, teamWeeks, results] = await Promise.all([
     selectAll<RatingRow>("chalk_ratings", "*", (q) => q.in("season", [prior, season])),
-    selectAll<TeamWeek>("chalk_team_weeks", "*", (q) => q.eq("season", season)),
+    selectAll<TeamWeek>("chalk_team_weeks", "*", (q) =>
+      q.eq("season", season).lte("week", LAST_REGULAR_WEEK),
+    ),
     selectAll<ResultRow>("chalk_results", "*", (q) =>
       q.gte("commence_time", `${season}-03-01`).lt("commence_time", `${season + 1}-03-01`),
     ),
@@ -247,8 +259,12 @@ export type StatsRow = {
 export async function getStats(seasonArg?: number): Promise<{ season: number; rows: StatsRow[] }> {
   const season = seasonArg ?? currentSeason();
   const [teamWeeks, defenseWeeks] = await Promise.all([
-    selectAll<TeamWeek>("chalk_team_weeks", "*", (q) => q.eq("season", season)),
-    selectAll<DefenseWeek>("chalk_defense_weeks", "*", (q) => q.eq("season", season)),
+    selectAll<TeamWeek>("chalk_team_weeks", "*", (q) =>
+      q.eq("season", season).lte("week", LAST_REGULAR_WEEK),
+    ),
+    selectAll<DefenseWeek>("chalk_defense_weeks", "*", (q) =>
+      q.eq("season", season).lte("week", LAST_REGULAR_WEEK),
+    ),
   ]);
 
   const byTeam = new Map<string, TeamWeek[]>();

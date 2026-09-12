@@ -23,14 +23,17 @@ const SAMPLE: BoardGame = {
   result: null,
 };
 
-function Specimen({ label, cssVar }: { label: string; cssVar: string }) {
+function Specimen({ label, cssVar, note }: { label: string; cssVar: string; note: string }) {
   return (
     <section
       className="mt-10 first:mt-4"
       style={{ ["--font-display" as string]: `var(${cssVar})` }}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="label text-butter">{label}</h2>
+        <h2 className="label text-butter">
+          {label}
+          {note ? <span className="ml-2 text-chalk-faint">{note}</span> : null}
+        </h2>
         <code className="tabular text-[0.6875rem] text-chalk-faint">{cssVar}</code>
       </div>
 
@@ -81,14 +84,15 @@ export default function FontsPage() {
     <div className={CANDIDATES.map((c) => c.font.variable).join(" ")}>
       <h1 className="chalk text-4xl leading-none font-bold sm:text-5xl">Display faces</h1>
       <p className="mt-3 max-w-prose text-sm text-chalk-soft">
-        The same header, nav, page title and Board card in each candidate.
-        Courier Prime stays on the slips throughout, so only the chalk changes.
-        Pick one and change the single line at the top of{" "}
+        The same header, nav, page title and Board card in each candidate, with
+        the face in use first to compare against. Courier Prime stays on the
+        slips throughout, so only the chalk changes. Pick one and change the
+        single line at the top of{" "}
         <code className="tabular text-chalk">src/lib/fonts.ts</code>.
       </p>
 
       {CANDIDATES.map((c) => (
-        <Specimen key={c.key} label={c.label} cssVar={c.cssVar} />
+        <Specimen key={c.key} label={c.label} cssVar={c.cssVar} note={c.note} />
       ))}
 
       <p className="mt-12 text-xs text-chalk-faint">
