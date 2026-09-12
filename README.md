@@ -18,6 +18,7 @@ clients have no access.
 | `chalk_player_weeks` | One row per player per game, for anyone with a rush, target or pass attempt. Rushing, receiving and passing lines plus red zone and goal line usage. Position comes from the season roster file. | `migrations/007_players.sql` |
 | `chalk_defense_weeks` | One row per defense per game: touchdowns and yards allowed, red zone trips and conversions allowed, and targets allowed split by receiver position. | `migrations/007_players.sql` |
 | `chalk_prop_snapshots` | Anytime-touchdown prices, one row per bookmaker per player per capture. | `migrations/008_props.sql` |
+| `chalk_bets` | The bet log: what was taken, at what number and price, plus the closing line, CLV, result and profit once graded. | `migrations/009_bets.sql` |
 | `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating in points of expected margin, plus the scoring ratings and league average total that an implied total is built from (apply `total_scale` to the combined adjustment when reconstructing one). Computed **as of** that week from games played before it. | `migrations/004_ratings.sql`, `migrations/006_scoring.sql` |
 
 `chalk_results.game_id` is unique and matches `chalk_odds_snapshots.game_id`,
@@ -214,6 +215,37 @@ Two things it handles that are easy to get wrong in week 1:
   given names like `C.J. Stroud` (which looks exactly like nflverse's own
   abbreviation format), and nflverse's widened initials such as `Ty.Johnson`.
   Unmatched names are reported, with team D/ST entries excluded.
+
+## Bet log and CLV
+
+```
+node bet.js add --game "ATL @ PIT" --market total --side Over --line 41.5 \
+                --price -110 --stake 25 --book draftkings --note "text"
+node bet.js list
+```
+
+`--game` takes "AWAY @ HOME" with abbreviations or full names and resolves it
+against upcoming games in `chalk_odds_snapshots`, asking before guessing when
+more than one game matches. `--game-id` skips resolution.
+
+`npm run grade` settles bets whenever their game has a result, filling the
+closing line, CLV, result and profit, then prints a per-season summary with
+record, profit, ROI, average CLV and the share of bets that beat the close.
+
+CLV is measured in points of line for spreads and totals, and in percentage
+points of implied probability for moneyline and anytime touchdown, where there
+is no line to move. It is positive whenever the bet beat the close. The closing
+quote comes from the bet's own book when that book posted a number in the last
+pre-kickoff capture, falling back to draftkings, then fanduel, then any book.
+
+Two limits worth knowing:
+
+- **`closing_price` is null for spreads and totals.** `chalk_odds_snapshots`
+  stores the line but not the juice, so only the line moves are measurable.
+  CLV for those markets is in points, which is the usual measure anyway.
+- **Anytime touchdown grades from rushing and receiving scores only**, since
+  those are the only touchdowns `chalk_player_weeks` carries. A return or
+  defensive touchdown would not settle a ticket most books would pay.
 
 ## Backlog
 

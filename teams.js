@@ -73,7 +73,48 @@ function toAbbr(oddsName) {
   return ODDS_TO_NFLVERSE[oddsName] || null;
 }
 
+const SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
+
+/**
+ * Collapse either naming style to one key. nflverse writes "A.St. Brown";
+ * the props feed writes "Amon-Ra St. Brown". Both become "a|stbrown".
+ */
+function playerNameKey(name) {
+  if (!name) return null;
+  let parts = String(name).trim().split(/\s+/);
+  while (parts.length > 1) {
+    const last = parts[parts.length - 1].replace(/[.,]/g, '').toLowerCase();
+    if (SUFFIXES.has(last)) parts.pop();
+    else break;
+  }
+  if (parts.length === 0) return null;
+
+  const ALL_INITIALS = /^([A-Za-z]\.)+$/;
+  let initial;
+  let rest;
+
+  // nflverse writes "D.Adams" or "A.St. Brown": an initial, a dot, then the
+  // surname. It widens the initial to disambiguate two players who would
+  // otherwise collide, as in "Ty.Johnson" and "Ja.Williams", so up to three
+  // leading letters are allowed. "C.J. Stroud" matches the same shape but is a
+  // two-initial given name, so this only counts when what follows the dot is
+  // not itself initials.
+  const abbreviated = parts[0].match(/^([A-Za-z]{1,3})\.(.*)$/);
+  if (abbreviated && abbreviated[2] && !ALL_INITIALS.test(abbreviated[2])) {
+    initial = abbreviated[1][0];
+    rest = [abbreviated[2], ...parts.slice(1)];
+  } else {
+    initial = parts[0][0];
+    rest = parts.slice(1);
+    // Drop middle initials: "Michael J. Smith", "C.J. Stroud".
+    while (rest.length > 1 && ALL_INITIALS.test(rest[0])) rest.shift();
+  }
+  if (rest.length === 0) return null;
+  return `${initial}|${rest.join('')}`.toLowerCase().replace(/[^a-z|]/g, '');
+}
+
 module.exports = {
+  playerNameKey,
   NFLVERSE_TO_ODDS,
   ODDS_TO_NFLVERSE,
   ALIASES,
