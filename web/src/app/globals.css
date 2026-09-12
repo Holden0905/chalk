@@ -12,10 +12,15 @@
 --------------------------------------------------------------------------- */
 
 @theme {
-  --color-slate-board: #1c2321;
+  /* Three surfaces, darkest to lightest reading order reversed on purpose:
+     the page is the board, a card is a patch wiped more recently, and the slip
+     inside a card is darker than either so the numbers sit in a well. */
+  --color-slate-board: #1c2321;   /* page */
+  --color-card: #2e3631;          /* card, lighter and a touch warmer */
+  --color-card-edge: #434e48;
+  --color-panel: #121615;         /* slip, darker than the page */
+  --color-panel-rule: #262f2c;
   --color-slate-deep: #171d1b;
-  --color-panel: #141917;
-  --color-panel-rule: #2b3431;
 
   --color-chalk: #e8e4d8;
   --color-chalk-soft: #b9b5a9;
@@ -25,7 +30,7 @@
   --color-win: #9bbf8a;
   --color-loss: #c98b7e;
 
-  --font-chalk: var(--font-chalk-display);
+  --font-chalk: var(--font-display);
   --font-sans: var(--font-condensed);
   --font-mono: var(--font-typewriter);
 }
@@ -121,6 +126,14 @@ body > * {
   border-radius: 2px;
 }
 
+/* A slip sitting inside a card: darker than the card, no outer border, just a
+   rule where it meets the card. */
+.slip {
+  background-color: var(--color-panel);
+  border-top: 1px solid var(--color-card-edge);
+  border-bottom: 1px solid var(--color-card-edge);
+}
+
 .panel-inset {
   background-color: var(--color-panel);
   border-top: 1px solid var(--color-panel-rule);
@@ -135,10 +148,67 @@ body > * {
 
 /* --- cards --------------------------------------------------------------- */
 
+/* The card is a lighter patch of board. Its edge is drawn rather than ruled:
+   a 1px border on a pseudo-element, pushed through an SVG turbulence filter so
+   the line wanders the way a chalk edge does. The filter is on the border
+   element only, so no text is distorted. */
 .board-card {
-  background-color: rgba(23, 29, 27, 0.55);
-  border: 1px solid rgba(232, 228, 216, 0.10);
-  border-radius: 3px;
+  position: relative;
+  background-color: var(--color-card);
+  border-radius: 2px;
+}
+
+.board-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1.5px solid rgba(232, 228, 216, 0.26);
+  border-radius: 2px;
+  filter: url(#chalk-edge);
+}
+
+/* Without the filter (older browsers, or reduced motion tooling) the card still
+   reads as a card, just with a clean edge. */
+@supports not (filter: url(#chalk-edge)) {
+  .board-card::after {
+    filter: none;
+  }
+}
+
+/* --- nav ----------------------------------------------------------------- */
+
+/* The active item is brighter chalk with a drawn underline. No box. */
+.nav-link {
+  position: relative;
+  color: var(--color-chalk);
+  opacity: 0.55;
+}
+
+.nav-link:hover {
+  opacity: 0.85;
+}
+
+.nav-link[aria-current="page"] {
+  opacity: 1;
+}
+
+.nav-link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0.35rem;
+  right: 0.35rem;
+  bottom: 0.1rem;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    rgba(232, 228, 216, 0.15) 0%,
+    rgba(232, 228, 216, 0.85) 22%,
+    rgba(232, 228, 216, 0.6) 55%,
+    rgba(232, 228, 216, 0.9) 80%,
+    rgba(232, 228, 216, 0.2) 100%
+  );
+  filter: url(#chalk-edge);
 }
 
 /* --- misc ---------------------------------------------------------------- */

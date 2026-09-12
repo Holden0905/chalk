@@ -87,7 +87,7 @@ export default function GameCard({ game }: { game: BoardGame }) {
       </div>
 
       {/* Flat panel. No texture, typewriter numerals, so the figures read. */}
-      <div className="panel-inset -mx-4 mt-4 px-4 pt-3 pb-1 sm:-mx-5 sm:px-5">
+      <div className="slip -mx-4 mt-4 px-4 pt-3 pb-1 sm:-mx-5 sm:px-5">
         <table className="tabular w-full text-[0.8125rem]">
           <thead>
             <tr className="label">

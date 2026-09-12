@@ -1,32 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Cabin_Sketch, Barlow_Condensed, Courier_Prime } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
+import ChalkFilter from "@/components/ChalkFilter";
 import ServiceWorker from "@/components/ServiceWorker";
-
-// Hand-lettered chalk for the frame: nav, titles, team names, big numbers.
-const chalkDisplay = Cabin_Sketch({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-chalk-display",
-  display: "swap",
-});
-
-// Condensed sans for everything that is not chalk and not a number in a table.
-const condensed = Barlow_Condensed({
-  weight: ["300", "400", "500", "600", "700"],
-  subsets: ["latin"],
-  variable: "--font-condensed",
-  display: "swap",
-});
-
-// Typewriter for the data panels, so columns line up like a typed slip.
-const typewriter = Courier_Prime({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-typewriter",
-  display: "swap",
-});
+import { condensed, display, typewriter } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "Chalk",
@@ -48,8 +25,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${chalkDisplay.variable} ${condensed.variable} ${typewriter.variable}`}>
+    <html lang="en" className={`${display.variable} ${condensed.variable} ${typewriter.variable}`}>
       <body>
+        <ChalkFilter />
         <Nav />
         <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 sm:px-6">{children}</main>
         <ServiceWorker />

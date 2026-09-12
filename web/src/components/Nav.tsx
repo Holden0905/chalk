@@ -20,12 +20,9 @@ export default function Nav() {
   return (
     <header className="pt-4">
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
-        <div className="flex items-baseline justify-between gap-4">
-          <Link href="/board" className="chalk text-[2rem] leading-none font-bold tracking-wide sm:text-4xl">
-            Chalk
-          </Link>
-          <span className="label hidden sm:block">A lens, not a picker</span>
-        </div>
+        <Link href="/board" className="chalk block text-[2rem] leading-none font-bold tracking-wide sm:text-4xl">
+          Chalk
+        </Link>
 
         <nav aria-label="Main" className="-mx-1 mt-3 overflow-x-auto">
           <ul className="flex min-w-max items-center gap-1 pb-1">
@@ -36,10 +33,8 @@ export default function Nav() {
                   <Link
                     href={link.href}
                     aria-current={active ? "page" : undefined}
-                    className={[
-                      "chalk block rounded-sm px-3 py-1.5 text-lg leading-none transition-opacity",
-                      active ? "chalk-accent" : "opacity-70 hover:opacity-100",
-                    ].join(" ")}
+                    className="chalk nav-link block px-3 pb-2 pt-1.5 text-lg leading-none"
+
                   >
                     {link.label}
                   </Link>
