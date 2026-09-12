@@ -17,6 +17,7 @@ clients have no access.
 | `chalk_team_weeks` | One row per team per game week, from nflverse play-by-play. Offense and defense efficiency splits, field position, points per trip inside the 40, points scored and allowed, and net special teams EPA. Foundation for an SP+-style rating. | `migrations/003_team_weeks.sql` |
 | `chalk_player_weeks` | One row per player per game, for anyone with a rush, target or pass attempt. Rushing, receiving and passing lines plus red zone and goal line usage. Position comes from the season roster file. | `migrations/007_players.sql` |
 | `chalk_defense_weeks` | One row per defense per game: touchdowns and yards allowed, red zone trips and conversions allowed, and targets allowed split by receiver position. | `migrations/007_players.sql` |
+| `chalk_prop_snapshots` | Anytime-touchdown prices, one row per bookmaker per player per capture. | `migrations/008_props.sql` |
 | `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating in points of expected margin, plus the scoring ratings and league average total that an implied total is built from (apply `total_scale` to the combined adjustment when reconstructing one). Computed **as of** that week from games played before it. | `migrations/004_ratings.sql`, `migrations/006_scoring.sql` |
 
 `chalk_results.game_id` is unique and matches `chalk_odds_snapshots.game_id`,
@@ -76,6 +77,7 @@ as `UNVERIFIED`; confirm them once those teams appear in a snapshot.
 | --- | --- | --- |
 | `.github/workflows/snapshot.yml` | `0 14 * * *` daily<br>`0 0 * * 5` Thu night ET (TNF)<br>`30 16 * * 0` Sun early slate<br>`0 20 * * 0` Sun late afternoon<br>`0 0 * * 1` Sun night ET (SNF)<br>`0 0 * * 2` Mon night ET (MNF) | `npm run snapshot` — captures current lines for every upcoming game. |
 | `.github/workflows/grade.yml` | `0 12 * * 2` Tuesday<br>`0 12 * * 5` Friday | `npm run grade` — grades completed games against their closing line. |
+| `.github/workflows/props.yml` | `0 14 * * 6` Saturday | `npm run snapshot:props` — anytime-TD prices for every game in the next 7 days. The events endpoint is free, so this costs one API credit per game. |
 | `.github/workflows/ingest_pbp.yml` | `0 13 * * 2` Tuesday | `npm run ingest:pbp`, then `npm run ingest:players`, then `npm run rate` — rebuilds the current season's team weeks, player and defense weeks from nflverse, then rates every team as of the upcoming week. Runs an hour after grade. Dispatch takes an optional `season` input for backfills. |
 
 Both run on `ubuntu-latest` with Node 22, both support `workflow_dispatch`,
@@ -108,6 +110,8 @@ npm run ingest:players -- 2025  # rebuild player and defense weeks for a season
 npm run rate -- 2025 10      # ratings as of week 10; bare `npm run rate` does current season, next week
 npm run backtest -- 2024 2025   # backtest spreads and totals; any number of seasons, pooled
 npm run residuals            # closing-line cover/over rates by bucket, 2024-2025
+npm run snapshot:props       # anytime-TD prices for the next 7 days
+npm run finder -- 2026 1     # TD board for a week: usage, matchup, best price
 npm test           # pure-logic tests; no credentials or network needed
 ```
 
@@ -186,6 +190,30 @@ Neither market is a usable betting model, and the totals lead is closed.
 `npm run residuals` prints closing-line cover and over rates across 2024-2025
 (544 games) sliced by divisional, rest, blowout hangover, line size, total
 size, early/late season, and cold-weather outdoor games. Descriptive only.
+
+## TD finder
+
+`npm run finder -- <season> <week>` prints a per-game board of skill players
+averaging at least 6 touches (rushes + targets) over their last four games,
+with season and last-4 touchdowns, goal-line and red-zone usage per game, the
+opponent defence's touchdown rates and league rank, and the best available
+anytime-TD price with its book. Sorted by last-4 goal-line touches per game.
+It deliberately produces no composite score and no pick.
+
+Rushing-type players (QB) are shown against the opponent's rush TD rate,
+receiving-type (WR, TE) against the pass TD rate, and RBs against both.
+
+Two things it handles that are easy to get wrong in week 1:
+
+- **Rosters come from the current season's roster file, not last season's game
+  log.** In 2026 week 1, 147 players had changed team since their last game;
+  using the game log would have listed them for the wrong side.
+- **Name joins between nflverse and the props feed.** nflverse writes
+  `D.Adams`, the feed writes `Davante Adams`. Both collapse to one key, which
+  also has to survive `Amon-Ra St. Brown`, `Michael Pittman Jr.`, initial-style
+  given names like `C.J. Stroud` (which looks exactly like nflverse's own
+  abbreviation format), and nflverse's widened initials such as `Ty.Johnson`.
+  Unmatched names are reported, with team D/ST entries excluded.
 
 ## Backlog
 

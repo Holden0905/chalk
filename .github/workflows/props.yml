@@ -1,0 +1,29 @@
+name: props
+
+# Saturday 14:00 UTC (10:00 AM ET while EDT is in effect, 9:00 AM once DST ends
+# Sun Nov 1 2026), which catches anytime-TD prices for the Sunday and Monday
+# slate the day before kickoff. The events endpoint is free, so the cost is one
+# API credit per game with a market.
+on:
+  schedule:
+    - cron: '0 14 * * 6'
+  workflow_dispatch:
+
+jobs:
+  props:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run snapshot:props
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
