@@ -1,0 +1,32 @@
+name: grade
+
+# Grades finals after the week's games are done: Tuesday catches the weekend
+# plus Monday night, Friday catches Thursday night. Both are 12:00 UTC (8:00 AM
+# ET while EDT is in effect, 7:00 AM ET once DST ends Sun Nov 1 2026), which
+# leaves plenty of margin after a night game for the scores feed to settle.
+# The scores endpoint only reaches back daysFrom=3, so a longer gap than that
+# between runs would leave games ungradable.
+on:
+  schedule:
+    - cron: '0 12 * * 2'  # Tuesday
+    - cron: '0 12 * * 5'  # Friday
+  workflow_dispatch:
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run grade
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
