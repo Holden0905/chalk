@@ -226,8 +226,8 @@ function computeRatings(allRows, season, week, weights) {
     teams.map((t, i) => [
       t,
       {
-        off_points_rating: round4((sb * zFor[i] + (1 - sb) * zOffEff[i]) * sdFor),
-        def_points_rating: round4((sb * zAgainst[i] + (1 - sb) * zDefEff[i]) * sdAgainst),
+        off_scoring_rating: round4((sb * zFor[i] + (1 - sb) * zOffEff[i]) * sdFor),
+        def_scoring_rating: round4((sb * zAgainst[i] + (1 - sb) * zDefEff[i]) * sdAgainst),
       },
     ])
   );
@@ -249,6 +249,7 @@ function computeRatings(allRows, season, week, weights) {
     week,
     team: t,
     ...scoring.get(t),
+    league_avg_total: round4(leagueAvgTotal),
     offense_rating: round4((off.get(t) - offMean) * scale),
     defense_rating: round4((def.get(t) - defMean) * scale),
     st_rating: round4(stW * (stMap.get(t) - stMean) * scale),
@@ -276,10 +277,10 @@ const round4 = (v) => (Number.isFinite(v) ? Number(v.toFixed(4)) : null);
 function impliedTotal(home, away, leagueAvgTotal) {
   return (
     leagueAvgTotal +
-    home.off_points_rating +
-    away.off_points_rating -
-    home.def_points_rating -
-    away.def_points_rating
+    home.off_scoring_rating +
+    away.off_scoring_rating -
+    home.def_scoring_rating -
+    away.def_scoring_rating
   );
 }
 
@@ -339,7 +340,8 @@ async function main() {
   // The scoring ratings feed the implied total but chalk_ratings has no columns
   // for them, so only the rating fields are persisted.
   const DB_COLUMNS = ['season', 'week', 'team', 'offense_rating', 'defense_rating',
-                      'st_rating', 'team_rating', 'games_used'];
+                      'st_rating', 'team_rating', 'games_used',
+                      'off_scoring_rating', 'def_scoring_rating', 'league_avg_total'];
   const payload = ratings.map((r) => Object.fromEntries(DB_COLUMNS.map((c) => [c, r[c]])));
 
   const { data, error } = await supabase

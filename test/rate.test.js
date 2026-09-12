@@ -212,7 +212,7 @@ t('a stronger defense pulls the implied total down', () => {
   for (const r of rows) { r.off_points = 23; r.def_points = r.team === 'AAA' ? 10 : 23; }
   const { ratings, leagueAvgTotal } = computeRatings(rows, 2025, 2, W0);
   const m = new Map(ratings.map((r) => [r.team, r]));
-  assert.ok(m.get('AAA').def_points_rating > 0, 'AAA allows fewer points, so rates above average');
+  assert.ok(m.get('AAA').def_scoring_rating > 0, 'AAA allows fewer points, so rates above average');
   assert.ok(impliedTotal(m.get('AAA'), m.get('BBB'), leagueAvgTotal) < leagueAvgTotal);
 });
 
