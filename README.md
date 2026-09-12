@@ -15,6 +15,8 @@ clients have no access.
 | `chalk_odds_snapshots` | One row per game per bookmaker per capture. Spread, total and both moneylines, stamped with `captured_at`. | `migrations/001_snapshots.sql` |
 | `chalk_results` | One row per graded game, keyed by `game_id`. Final score, the closing line used, and whether the home side covered / the game went over. | `migrations/002_results.sql` |
 | `chalk_team_weeks` | One row per team per game week, from nflverse play-by-play. Offense and defense efficiency splits, field position, points per trip inside the 40, points scored and allowed, and net special teams EPA. Foundation for an SP+-style rating. | `migrations/003_team_weeks.sql` |
+| `chalk_player_weeks` | One row per player per game, for anyone with a rush, target or pass attempt. Rushing, receiving and passing lines plus red zone and goal line usage. Position comes from the season roster file. | `migrations/007_players.sql` |
+| `chalk_defense_weeks` | One row per defense per game: touchdowns and yards allowed, red zone trips and conversions allowed, and targets allowed split by receiver position. | `migrations/007_players.sql` |
 | `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating in points of expected margin, plus the scoring ratings and league average total that an implied total is built from (apply `total_scale` to the combined adjustment when reconstructing one). Computed **as of** that week from games played before it. | `migrations/004_ratings.sql`, `migrations/006_scoring.sql` |
 
 `chalk_results.game_id` is unique and matches `chalk_odds_snapshots.game_id`,
@@ -22,6 +24,30 @@ so a result joins straight to that game's full line history.
 
 `home_covered` and `went_over` are **null on an exact push**, which is
 different from a game not being graded at all — an ungraded game has no row.
+
+### Counting rules in the player tables
+
+Three nflverse conventions differ from how the stats are normally counted, all
+verified against the 2025 file:
+
+- **Sacks carry `pass_attempt = 1`.** Official pass attempts do not count them,
+  so `pass_att` excludes sacks. Leaving them in would have added ~1,350 phantom
+  attempts to a season.
+- **Two-point conversions carry `rush_attempt` and `pass_attempt`** but never
+  `rush_touchdown` or `pass_touchdown`. They are excluded everywhere.
+- **Extra points sit at `yardline_100 = 15`.** Red zone is therefore measured
+  from scrimmage plays only; counting the PAT would mark nearly every touchdown
+  drive as a red zone trip, including 60-yard ones.
+
+Touchdown attribution is clean: every `rush_touchdown` has `td_player_id`
+equal to the rusher and every `pass_touchdown` equals the receiver, and
+defensive or return touchdowns set neither flag, so "allowed" counts only
+offensive scores.
+
+`rec_yds` league-wide runs about 200 yards short of `pass_yds_allowed` per
+season. That is entirely laterals — 18 plays in 2025 — where nflverse credits
+the lateral recipient under a separate column that these tables do not capture.
+`pass_yds` and `pass_yds_allowed` reconcile exactly.
 
 `chalk_team_weeks.off_avg_start_yardline` is `yardline_100` at drive start, so
 **higher is worse** field position: 75 means the drive began on the team's own
@@ -50,7 +76,7 @@ as `UNVERIFIED`; confirm them once those teams appear in a snapshot.
 | --- | --- | --- |
 | `.github/workflows/snapshot.yml` | `0 14 * * *` daily<br>`0 0 * * 5` Thu night ET (TNF)<br>`30 16 * * 0` Sun early slate<br>`0 20 * * 0` Sun late afternoon<br>`0 0 * * 1` Sun night ET (SNF)<br>`0 0 * * 2` Mon night ET (MNF) | `npm run snapshot` — captures current lines for every upcoming game. |
 | `.github/workflows/grade.yml` | `0 12 * * 2` Tuesday<br>`0 12 * * 5` Friday | `npm run grade` — grades completed games against their closing line. |
-| `.github/workflows/ingest_pbp.yml` | `0 13 * * 2` Tuesday | `npm run ingest:pbp` then `npm run rate` — rebuilds the current season's team weeks from nflverse, then rates every team as of the upcoming week. Runs an hour after grade. Dispatch takes an optional `season` input for backfills. |
+| `.github/workflows/ingest_pbp.yml` | `0 13 * * 2` Tuesday | `npm run ingest:pbp`, then `npm run ingest:players`, then `npm run rate` — rebuilds the current season's team weeks, player and defense weeks from nflverse, then rates every team as of the upcoming week. Runs an hour after grade. Dispatch takes an optional `season` input for backfills. |
 
 Both run on `ubuntu-latest` with Node 22, both support `workflow_dispatch`,
 and both read `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `ODDS_API_KEY` from
@@ -77,7 +103,8 @@ Requires a `.env` with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and
 npm install
 npm run snapshot   # capture current lines (costs 1 Odds API request)
 npm run grade      # grade finished games (costs 1 request, or 0 if nothing is gradable)
-npm run ingest:pbp -- 2025   # rebuild team weeks for a season (no Odds API cost)
+npm run ingest:pbp -- 2025      # rebuild team weeks for a season (no Odds API cost)
+npm run ingest:players -- 2025  # rebuild player and defense weeks for a season
 npm run rate -- 2025 10      # ratings as of week 10; bare `npm run rate` does current season, next week
 npm run backtest -- 2024 2025   # backtest spreads and totals; any number of seasons, pooled
 npm run residuals            # closing-line cover/over rates by bucket, 2024-2025

@@ -4,13 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/grade.test.js && node test/ingest_pbp.test.js && node test/rate.test.js",
+    "test": "node test/grade.test.js && node test/ingest_pbp.test.js && node test/ingest_players.test.js && node test/rate.test.js",
     "snapshot": "node snapshot.js",
     "grade": "node grade.js",
     "ingest:pbp": "node ingest_pbp.js",
     "rate": "node rate.js",
     "backtest": "node backtest.js",
-    "residuals": "node residuals.js"
+    "residuals": "node residuals.js",
+    "ingest:players": "node ingest_players.js"
   },
   "keywords": [],
   "author": "",

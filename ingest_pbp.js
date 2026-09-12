@@ -287,4 +287,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = { addPlay, sideStats, buildRows, currentSeason, newSide, SCRIMMAGE, EFFICIENCY, SPECIAL };
+module.exports = { addPlay, sideStats, buildRows, currentSeason, newSide, streamPlays,
+                   SCRIMMAGE, EFFICIENCY, SPECIAL };

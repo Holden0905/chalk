@@ -32,6 +32,13 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
 
+      # Player and defense boxes from the same play-by-play file.
+      - run: npm run ingest:players -- ${{ inputs.season }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+
       # Ratings for the upcoming week, built from the games just ingested.
       # With no arguments this rates the current season as of the next unplayed
       # week, which is the week whose lines we are about to shop.
