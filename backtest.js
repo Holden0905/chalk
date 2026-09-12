@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { parse } = require('csv-parse/sync');
 const { createClient } = require('@supabase/supabase-js');
-const { computeRatings, loadWeights, mean } = require('./rate.js');
+const { computeRatings, impliedTotal, loadWeights, mean } = require('./rate.js');
 
 function requireEnv(name) {
   const raw = process.env[name];
@@ -93,7 +93,7 @@ async function main() {
   const lookahead = [];
 
   for (let week = firstWeek; week <= lastWeek; week++) {
-    const { ratings, maxWeekUsed, blend } = computeRatings(teamWeeks, season, week, weights);
+    const { ratings, leagueAvgTotal, maxWeekUsed, blend } = computeRatings(teamWeeks, season, week, weights);
     lookahead.push({ week, maxWeekUsed, blend, teams: ratings.length });
 
     const byTeam = new Map(ratings.map((r) => [r.team, r]));
@@ -106,7 +106,12 @@ async function main() {
       const implied = home.team_rating - away.team_rating + hf;
       const vegas = Number(g.spread_line);
       const actual = Number(g.home_score) - Number(g.away_score);
-      rows.push({ week, home: g.home_team, away: g.away_team, implied, vegas, actual });
+      rows.push({
+        week, home: g.home_team, away: g.away_team, implied, vegas, actual,
+        impliedTotal: impliedTotal(home, away, leagueAvgTotal),
+        vegasTotal: Number(g.total_line),
+        actualTotal: Number(g.home_score) + Number(g.away_score),
+      });
     }
   }
 
@@ -142,6 +147,11 @@ async function main() {
   const kv = slope(rows.map((r) => r.vegas), rows.map((r) => r.actual));
   console.log('Calibration (slope of actual margin on the number; 1.00 is perfectly scaled)');
   console.log(`  ours  ${k.toFixed(3)}   vegas ${kv.toFixed(3)}`);
+  // Ratings scale linearly with rating_points_per_sd and home_field is an
+  // additive constant, so the slope moves as 1/scale: the fitted value is just
+  // the current one times the observed slope.
+  console.log(`  rating_points_per_sd for slope 1.000: ${(weights.rating_points_per_sd * k).toFixed(4)} ` +
+              `(currently ${weights.rating_points_per_sd})`);
   console.log(`  implied spread SD ${Math.sqrt(mean(rows.map((r) => (r.implied - mean(rows.map((x) => x.implied))) ** 2))).toFixed(2)}, ` +
               `vegas SD ${Math.sqrt(mean(rows.map((r) => (r.vegas - mean(rows.map((x) => x.vegas))) ** 2))).toFixed(2)}`);
   console.log();
@@ -173,12 +183,44 @@ async function main() {
   console.log();
 
   // ---- totals ----
-  console.log('Totals');
-  console.log('  Not produced. This rating is margin-only by construction: every input is a');
-  console.log('  z-scored efficiency rate, and chalk_team_weeks stores no points scored or');
-  console.log('  allowed, so there is nothing to anchor an expected points total to. A totals');
-  console.log('  model needs points for/against added to the team-week table first.');
-  console.log(`  For reference, Vegas total_line MAE over these ${games.length} games would be the bar to beat.`);
+  const tRows = rows.filter((r) => Number.isFinite(r.vegasTotal) && Number.isFinite(r.impliedTotal));
+  const ourT = mae(tRows.map((r) => r.impliedTotal - r.actualTotal));
+  const vegT = mae(tRows.map((r) => r.vegasTotal - r.actualTotal));
+  const kT = slope(tRows.map((r) => r.impliedTotal), tRows.map((r) => r.actualTotal));
+
+  console.log('Totals accuracy');
+  console.log(`  games ${tRows.length}`);
+  console.log(`  our implied total MAE   ${ourT.toFixed(3)}`);
+  console.log(`  vegas total_line MAE    ${vegT.toFixed(3)}`);
+  console.log(`  gap                     ${(ourT - vegT >= 0 ? '+' : '') + (ourT - vegT).toFixed(3)}`);
+  console.log(`  calibration slope ${kT.toFixed(3)}, ` +
+              `our total SD ${Math.sqrt(mean(tRows.map((r) => (r.impliedTotal - mean(tRows.map((x) => x.impliedTotal))) ** 2))).toFixed(2)}, ` +
+              `vegas SD ${Math.sqrt(mean(tRows.map((r) => (r.vegasTotal - mean(tRows.map((x) => x.vegasTotal))) ** 2))).toFixed(2)}`);
+  console.log();
+
+  console.log('O/U record betting the side our number favours, by disagreement with Vegas');
+  console.log(`  ${pad('edge', 6)}${pad('bets', 7)}${pad('W', 6)}${pad('L', 6)}${pad('P', 5)}${pad('win%', 9)}${pad('vs 52.38% BE', 15)}`);
+  for (const threshold of [1, 2, 3, 4]) {
+    let w = 0;
+    let l = 0;
+    let p = 0;
+    for (const r of tRows) {
+      const edge = r.impliedTotal - r.vegasTotal;
+      if (Math.abs(edge) < threshold) continue;
+      const onOver = edge > 0;
+      const diff = r.actualTotal - r.vegasTotal;
+      if (diff === 0) p++;
+      else if (diff > 0 === onOver) w++;
+      else l++;
+    }
+    const decided = w + l;
+    const pct = decided ? (w / decided) * 100 : null;
+    const delta = pct == null ? null : pct - 52.38;
+    console.log(
+      `  ${pad('>=' + threshold, 6)}${pad(w + l + p, 7)}${pad(w, 6)}${pad(l, 6)}${pad(p, 5)}` +
+        `${pad(pct == null ? '-' : pct.toFixed(1) + '%', 9)}${pad(delta == null ? '-' : (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' pts', 15)}`
+    );
+  }
 }
 
 if (require.main === module) {

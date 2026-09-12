@@ -15,6 +15,8 @@
     "turnovers": 0.1
   },
   "special_teams": 0.07,
+  "_comment_scoring": "Implied totals: weight on actual points scored/allowed versus the efficiency composite when forming a scoring rating. 0.5 splits them evenly.",
+  "scoring_blend": 0.5,
   "_comment_blend": "Weight on PRIOR season stats, indexed by week (element 0 = week 1). Week 1 leans 90% on last year; by week 9 the current season stands alone.",
   "prior_season_blend": [
     0.9,
@@ -44,5 +46,5 @@
   "_comment_home_field": "Points added to the home team's implied spread. Zeroed automatically for neutral-site games.",
   "home_field": 2.0,
   "_comment_scale": "Ratings are centred and scaled so league SD equals this many points of margin, making one rating point one point of expected margin.",
-  "rating_points_per_sd": 5.0
+  "rating_points_per_sd": 3.8532
 }

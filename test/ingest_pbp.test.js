@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { addPlay, sideStats, newSide } = require('../ingest_pbp.js');
+const { addPlay, sideStats, newSide, buildRows } = require('../ingest_pbp.js');
 const teams = require('../teams.js');
 
 let pass = 0;
@@ -129,6 +129,27 @@ t('field goals count toward special teams EPA', () => {
 t('extra points are not special teams EPA (already in drive points)', () => {
   const g = feed([play({ play_type: 'extra_point', epa: '9', down: '' })]);
   assert.equal(g.sides.get('KC').stEpa, 0);
+});
+
+// --- points -----------------------------------------------------------------
+t('points land on the right side of the game', () => {
+  const g = {
+    season: 2025, week: 1, home_team: 'LAC', away_team: 'KC',
+    home_points: 27, away_points: 21, sides: new Map(),
+  };
+  g.sides.set('KC', newSide());
+  g.sides.set('LAC', newSide());
+  const rows = buildRows(new Map([['g1', g]]));
+  const kc = rows.find((r) => r.team === 'KC');
+  const lac = rows.find((r) => r.team === 'LAC');
+  assert.equal(kc.off_points, 21);
+  assert.equal(kc.def_points, 27);
+  assert.equal(kc.is_home, false);
+  assert.equal(lac.off_points, 27);
+  assert.equal(lac.def_points, 21);
+  assert.equal(lac.is_home, true);
+  // one team's points allowed is the other's points scored
+  assert.equal(kc.def_points, lac.off_points);
 });
 
 // --- team mapping -----------------------------------------------------------

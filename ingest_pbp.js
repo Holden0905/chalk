@@ -174,12 +174,15 @@ function buildRows(games) {
       const oppSide = game.sides.get(oppName);
       if (!oppSide) continue; // one-sided game data; skip rather than emit half a row
 
+      const isHome = team === game.home_team;
       rows.push({
         season: game.season,
         week: game.week,
         team,
         opponent: oppName,
-        is_home: team === game.home_team,
+        is_home: isHome,
+        off_points: isHome ? game.home_points : game.away_points,
+        def_points: isHome ? game.away_points : game.home_points,
         ...prefixed('off', sideStats(side)),
         ...prefixed('def', sideStats(oppSide)),
         st_epa: round(side.stEpa, 4),
@@ -228,10 +231,19 @@ async function main() {
         week: Number(r.week),
         home_team: r.home_team,
         away_team: r.away_team,
+        home_points: null,
+        away_points: null,
         sides: new Map(),
       });
     }
-    addPlay(games.get(r.game_id), r);
+    const game = games.get(r.game_id);
+    // home_score / away_score carry the FINAL score on every row of the game,
+    // unlike total_home_score which is the running score before the play.
+    const hp = num(r.home_score);
+    const ap = num(r.away_score);
+    if (hp != null) game.home_points = hp;
+    if (ap != null) game.away_points = ap;
+    addPlay(game, r);
   });
 
   const rows = buildRows(games);

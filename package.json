@@ -9,7 +9,8 @@
     "grade": "node grade.js",
     "ingest:pbp": "node ingest_pbp.js",
     "rate": "node rate.js",
-    "backtest": "node backtest.js"
+    "backtest": "node backtest.js",
+    "residuals": "node residuals.js"
   },
   "keywords": [],
   "author": "",

@@ -139,6 +139,16 @@ function computeRatings(allRows, season, week, weights) {
       mean(pri.map((r) => num(r.st_epa))),
       blend
     );
+    row.pointsFor = blendValue(
+      mean(cur.map((r) => num(r.off_points))),
+      mean(pri.map((r) => num(r.off_points))),
+      blend
+    );
+    row.pointsAgainst = blendValue(
+      mean(cur.map((r) => num(r.def_points))),
+      mean(pri.map((r) => num(r.def_points))),
+      blend
+    );
     row.games = cur.length;
     inputs.set(t, row);
   }
@@ -196,6 +206,32 @@ function computeRatings(allRows, season, week, weights) {
     def = nextDef;
   }
 
+  // --- scoring ratings, in points per team per game -------------------------
+  // The margin rating above is built entirely from rates, which cannot say how
+  // many points a game will produce. These blend actual points for/against with
+  // the efficiency composites and carry real point units, so an implied total
+  // can be assembled from them.
+  const ptsFor = teams.map((t) => inputs.get(t).pointsFor);
+  const ptsAgainst = teams.map((t) => inputs.get(t).pointsAgainst);
+  const zFor = zScores(ptsFor);
+  const zAgainst = zScores(ptsAgainst).map((v) => -v); // allowing fewer is better
+  const zOffEff = zScores(teams.map((t) => off.get(t)));
+  const zDefEff = zScores(teams.map((t) => def.get(t)));
+  const sb = weights.scoring_blend ?? 0.5;
+  const sdFor = stdev(ptsFor) ?? 0;
+  const sdAgainst = stdev(ptsAgainst) ?? 0;
+  const leagueAvgTotal = (mean(ptsFor) ?? 0) + (mean(ptsAgainst) ?? 0);
+
+  const scoring = new Map(
+    teams.map((t, i) => [
+      t,
+      {
+        off_points_rating: round4((sb * zFor[i] + (1 - sb) * zOffEff[i]) * sdFor),
+        def_points_rating: round4((sb * zAgainst[i] + (1 - sb) * zDefEff[i]) * sdAgainst),
+      },
+    ])
+  );
+
   // Centre each component, then scale all three by one factor so the parts
   // still sum to the whole and league SD equals rating_points_per_sd.
   const stW = weights.special_teams;
@@ -212,6 +248,7 @@ function computeRatings(allRows, season, week, weights) {
     season,
     week,
     team: t,
+    ...scoring.get(t),
     offense_rating: round4((off.get(t) - offMean) * scale),
     defense_rating: round4((def.get(t) - defMean) * scale),
     st_rating: round4(stW * (stMap.get(t) - stMean) * scale),
@@ -222,6 +259,7 @@ function computeRatings(allRows, season, week, weights) {
   const weeksUsed = current.map((r) => Number(r.week));
   return {
     ratings,
+    leagueAvgTotal,
     maxWeekUsed: weeksUsed.length ? Math.max(...weeksUsed) : null,
     blend,
     scale,
@@ -229,6 +267,21 @@ function computeRatings(allRows, season, week, weights) {
 }
 
 const round4 = (v) => (Number.isFinite(v) ? Number(v.toFixed(4)) : null);
+
+/**
+ * Expected combined points. Each team's scoring is the league average nudged by
+ * its own offense and by the defense it faces, so the two offenses add and the
+ * two defenses subtract.
+ */
+function impliedTotal(home, away, leagueAvgTotal) {
+  return (
+    leagueAvgTotal +
+    home.off_points_rating +
+    away.off_points_rating -
+    home.def_points_rating -
+    away.def_points_rating
+  );
+}
 
 const PAGE = 1000;
 async function selectAll(supabase, table, columns, tweak = (q) => q) {
@@ -283,9 +336,15 @@ async function main() {
       `latest week used ${maxWeekUsed ?? 'none (prior season only)'}.`
   );
 
+  // The scoring ratings feed the implied total but chalk_ratings has no columns
+  // for them, so only the rating fields are persisted.
+  const DB_COLUMNS = ['season', 'week', 'team', 'offense_rating', 'defense_rating',
+                      'st_rating', 'team_rating', 'games_used'];
+  const payload = ratings.map((r) => Object.fromEntries(DB_COLUMNS.map((c) => [c, r[c]])));
+
   const { data, error } = await supabase
     .from('chalk_ratings')
-    .upsert(ratings, { onConflict: 'season,week,team' })
+    .upsert(payload, { onConflict: 'season,week,team' })
     .select('id');
   if (error) {
     console.error(`Upsert failed: ${error.message}`);
@@ -306,4 +365,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { computeRatings, loadWeights, aggregate, zScores, mean, stdev, ORIENT, COLUMN, STATS };
+module.exports = { computeRatings, impliedTotal, loadWeights, aggregate, zScores, mean, stdev, ORIENT, COLUMN, STATS };

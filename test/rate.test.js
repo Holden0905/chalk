@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { computeRatings, loadWeights, zScores, mean, stdev } = require('../rate.js');
+const { computeRatings, impliedTotal, loadWeights, zScores, mean, stdev } = require('../rate.js');
 
 let pass = 0;
 const t = (name, fn) => { fn(); console.log(`  ok  ${name}`); pass++; };
@@ -178,6 +178,42 @@ t('facing tougher defenses lifts an offense relative to an identical team', () =
     'identical raw offenses should start equal');
   assert.ok(adjusted.get('AAA').offense_rating > adjusted.get('CCC').offense_rating,
     'the team that faced better defenses should end up rated higher');
+});
+
+// --- implied total ----------------------------------------------------------
+t('two average teams imply the league average total', () => {
+  const rows = league();
+  for (const r of rows) { r.off_points = 23; r.def_points = 23; }
+  const { ratings, leagueAvgTotal } = computeRatings(rows, 2025, 2, W0);
+  assert.equal(leagueAvgTotal, 46);
+  const m = new Map(ratings.map((r) => [r.team, r]));
+  const total = impliedTotal(m.get('AAA'), m.get('BBB'), leagueAvgTotal);
+  assert.ok(Math.abs(total - 46) < 1e-6, `expected 46, got ${total}`);
+});
+
+t('two high-scoring offenses imply a higher total than two low-scoring ones', () => {
+  const rows = league();
+  for (const r of rows) {
+    const hot = r.team === 'AAA' || r.team === 'BBB';
+    r.off_points = hot ? 34 : 13;
+    r.def_points = hot ? 34 : 13;
+    r.off_epa_per_play = hot ? 0.3 : -0.3;
+    r.def_epa_per_play = hot ? 0.3 : -0.3;
+  }
+  const { ratings, leagueAvgTotal } = computeRatings(rows, 2025, 2, W0);
+  const m = new Map(ratings.map((r) => [r.team, r]));
+  const hotGame = impliedTotal(m.get('AAA'), m.get('BBB'), leagueAvgTotal);
+  const coldGame = impliedTotal(m.get('CCC'), m.get('DDD'), leagueAvgTotal);
+  assert.ok(hotGame > coldGame, `${hotGame} should exceed ${coldGame}`);
+});
+
+t('a stronger defense pulls the implied total down', () => {
+  const rows = league();
+  for (const r of rows) { r.off_points = 23; r.def_points = r.team === 'AAA' ? 10 : 23; }
+  const { ratings, leagueAvgTotal } = computeRatings(rows, 2025, 2, W0);
+  const m = new Map(ratings.map((r) => [r.team, r]));
+  assert.ok(m.get('AAA').def_points_rating > 0, 'AAA allows fewer points, so rates above average');
+  assert.ok(impliedTotal(m.get('AAA'), m.get('BBB'), leagueAvgTotal) < leagueAvgTotal);
 });
 
 // --- helpers ----------------------------------------------------------------

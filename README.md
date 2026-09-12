@@ -14,7 +14,7 @@ clients have no access.
 | --- | --- | --- |
 | `chalk_odds_snapshots` | One row per game per bookmaker per capture. Spread, total and both moneylines, stamped with `captured_at`. | `migrations/001_snapshots.sql` |
 | `chalk_results` | One row per graded game, keyed by `game_id`. Final score, the closing line used, and whether the home side covered / the game went over. | `migrations/002_results.sql` |
-| `chalk_team_weeks` | One row per team per game week, from nflverse play-by-play. Offense and defense efficiency splits, field position, points per trip inside the 40, and net special teams EPA. Foundation for an SP+-style rating. | `migrations/003_team_weeks.sql` |
+| `chalk_team_weeks` | One row per team per game week, from nflverse play-by-play. Offense and defense efficiency splits, field position, points per trip inside the 40, points scored and allowed, and net special teams EPA. Foundation for an SP+-style rating. | `migrations/003_team_weeks.sql` |
 | `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating, in points of expected margin. Computed **as of** that week from games played before it. | `migrations/004_ratings.sql` |
 
 `chalk_results.game_id` is unique and matches `chalk_odds_snapshots.game_id`,
@@ -79,7 +79,8 @@ npm run snapshot   # capture current lines (costs 1 Odds API request)
 npm run grade      # grade finished games (costs 1 request, or 0 if nothing is gradable)
 npm run ingest:pbp -- 2025   # rebuild team weeks for a season (no Odds API cost)
 npm run rate -- 2025 10      # ratings as of week 10; bare `npm run rate` does current season, next week
-npm run backtest -- 2025     # backtest the rating against closing lines
+npm run backtest -- 2025     # backtest spreads and totals against closing lines
+npm run residuals            # closing-line cover/over rates by bucket, 2024-2025
 npm test           # pure-logic tests; no credentials or network needed
 ```
 
@@ -100,32 +101,49 @@ the filter in `computeRatings`, and tested by feeding in extreme future weeks
 and asserting the ratings do not move. `npm run backtest` prints a per-week
 lookahead audit showing the latest week used.
 
-### Baseline backtest, 2025 weeks 2-18 (256 games)
+`rate.js` also produces an **implied total**: the league average combined
+points, plus both offenses' scoring ratings, minus both defenses'. Scoring
+ratings blend z-scored points for/against with the efficiency composites
+(`scoring_blend`), carried in real point units.
 
-| | MAE vs actual margin |
-| --- | --- |
-| Our implied spread | 10.718 |
-| Vegas closing line | 9.959 |
-| Gap | **+0.759 worse** |
+### Backtest, 2025 weeks 2-18 (256 games)
 
-ATS, betting the side our number favours: 49.5% at 1+ point of disagreement,
-50.0% at 2+, 44.2% at 3+, 38.0% at 4+ — all below the 52.38% break-even, and
-**getting worse as disagreement grows**, which is the opposite of what an edge
-looks like. The calibration slope is 0.771 (1.00 is perfectly scaled), meaning
-the numbers are spread too wide: implied SD 6.99 against Vegas 6.32.
+`rating_points_per_sd` is **3.8532**, fitted so the spread calibration slope is
+1.000 on this season. It was 5.0, which spread the numbers ~30% too wide.
 
-This is an unturned baseline, recorded as a starting point, not a usable
-betting model.
+| | our MAE | vegas MAE | gap |
+| --- | --- | --- | --- |
+| Spread | 10.627 | 9.959 | +0.668 |
+| Total | 10.635 | 10.262 | +0.374 |
+
+ATS, betting the side our number favours: 45.4% / 46.1% / 50.5% / 42.5% at
+1/2/3/4 points of disagreement — all below the 52.38% break-even, with no
+pattern that looks like an edge.
+
+O/U is the one place the numbers point somewhere: 52.3% / 52.6% / 58.5% /
+61.4% at the same thresholds, **rising with disagreement**, which is the shape
+an edge has. Treat it as a lead, not a finding — 101 bets at the 4-point
+threshold, one season, and eight threshold/market combinations were looked at.
+The totals calibration slope is 0.557, so the magnitudes are badly over-spread
+even where the direction is right.
+
+Neither market is a usable betting model yet.
+
+### Residual buckets
+
+`npm run residuals` prints closing-line cover and over rates across 2024-2025
+(544 games) sliced by divisional, rest, blowout hangover, line size, total
+size, early/late season, and cold-weather outdoor games. Descriptive only.
 
 ## Backlog
 
-- **Totals are not modelled.** The rating is margin-only: every input is a
-  z-scored efficiency rate and `chalk_team_weeks` stores no points scored or
-  allowed, so there is nothing to anchor an expected total to. Adding points
-  for/against to the team-week table is the prerequisite.
-- **The rating scale is uncalibrated.** The backtest slope of 0.771 implies
-  `rating_points_per_sd` nearer 3.9 than the current 5.0. Left alone
-  deliberately so the baseline is untuned.
+- **The totals scale is over-spread.** Spread calibration is fitted at 1.000
+  but totals come out at 0.557, so implied totals swing roughly twice as far as
+  they should. A separate scale for totals is the obvious next step.
+- **`rating_points_per_sd` is fitted on 2025 only.** One season, in-sample for
+  the fit. Re-fit across 2024 and 2025 before trusting it.
+- **The O/U signal needs out-of-sample confirmation.** 58.5% at 3+ and 61.4% at
+  4+ over one season is not enough to act on.
 - **Confirm the `LA` / `SEA` / `SF` team name mappings** in `teams.js` against a
   real `chalk_odds_snapshots` row once those teams are captured.
 - **Fall back to ESPN's scoreboard API in `grade.js` for games older than three
