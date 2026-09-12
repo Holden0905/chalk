@@ -1,0 +1,48 @@
+{
+  "_comment": "Rating weights. Offense and defense weights are applied to z-scores of each stat and sum to 1.0 within each side. special_teams is applied to the team total.",
+  "offense": {
+    "success_rate": 0.35,
+    "epa_per_play": 0.3,
+    "finishing": 0.15,
+    "field_position": 0.1,
+    "turnovers": 0.1
+  },
+  "defense": {
+    "success_rate": 0.35,
+    "epa_per_play": 0.3,
+    "finishing": 0.15,
+    "field_position": 0.1,
+    "turnovers": 0.1
+  },
+  "special_teams": 0.07,
+  "_comment_blend": "Weight on PRIOR season stats, indexed by week (element 0 = week 1). Week 1 leans 90% on last year; by week 9 the current season stands alone.",
+  "prior_season_blend": [
+    0.9,
+    0.7875,
+    0.675,
+    0.5625,
+    0.45,
+    0.3375,
+    0.225,
+    0.1125,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "opponent_adjust_iterations": 5,
+  "_comment_home_field": "Points added to the home team's implied spread. Zeroed automatically for neutral-site games.",
+  "home_field": 2.0,
+  "_comment_scale": "Ratings are centred and scaled so league SD equals this many points of margin, making one rating point one point of expected margin.",
+  "rating_points_per_sd": 5.0
+}

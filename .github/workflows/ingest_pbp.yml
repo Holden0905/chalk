@@ -31,3 +31,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+
+      # Ratings for the upcoming week, built from the games just ingested.
+      # With no arguments this rates the current season as of the next unplayed
+      # week, which is the week whose lines we are about to shop.
+      - run: npm run rate -- ${{ inputs.season }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
