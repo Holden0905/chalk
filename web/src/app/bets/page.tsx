@@ -1,6 +1,6 @@
 import BetForm from "@/components/BetForm";
 import DeleteBet from "@/components/DeleteBet";
-import { getBetsPage, type Bet } from "@/lib/betsData";
+import { chalkEdge, getBetsPage, type Bet } from "@/lib/betsData";
 import { toAbbr } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,8 @@ function Row({ bet, running, label }: { bet: Bet; running?: number; label: strin
   const resultColor =
     bet.result === "win" ? "text-win" : bet.result === "loss" ? "text-loss" : "text-chalk-soft";
   const clv = num(bet.clv_points);
+  // Green when the number taken beat Chalk's own, red when it did not.
+  const lean = chalkEdge({ market: bet.market, side: bet.side, line: num(bet.line), chalkLine: num(bet.chalk_line) });
   return (
     <tr className="border-t border-panel-rule">
       <td className="py-2 pl-3 pr-2 text-chalk-faint">{day(bet.commence_time)}</td>
@@ -34,6 +36,9 @@ function Row({ bet, running, label }: { bet: Bet; running?: number; label: strin
       <td className="py-2 pr-3 text-chalk-soft">{bet.market}</td>
       <td className="whitespace-nowrap py-2 pr-3 text-chalk">{bet.side}</td>
       <td className="py-2 pr-3 text-right text-chalk">{bet.line == null ? "–" : plain(bet.line, 1)}</td>
+      <td className={`py-2 pr-3 text-right ${lean == null ? "text-chalk-faint" : lean > 0 ? "text-win" : "text-loss"}`}>
+        {bet.chalk_line == null ? "–" : plain(bet.chalk_line, 1)}
+      </td>
       <td className="py-2 pr-3 text-right text-chalk">{priceOf(bet.price)}</td>
       <td className="py-2 pr-3 text-right text-chalk-soft">{plain(bet.stake, 2)}</td>
       <td className="py-2 pr-3 text-right text-chalk-soft">
@@ -52,7 +57,7 @@ function Row({ bet, running, label }: { bet: Bet; running?: number; label: strin
   );
 }
 
-const HEADS = ["Date", "Game", "Market", "Side", "Line", "Price", "Stake", "Close", "CLV", "Result", "Profit", "Run", ""];
+const HEADS = ["Date", "Game", "Market", "Side", "Line", "Chalk", "Price", "Stake", "Close", "CLV", "Result", "Profit", "Run", ""];
 
 export default async function BetsPage() {
   const { games, books, open, graded, summary, playersByGameId, season } = await getBetsPage();
@@ -102,6 +107,32 @@ export default async function BetsPage() {
         )}
       </p>
 
+      {summary.agreed.bets + summary.against.bets > 0 ? (
+        <p className="tabular mt-1 text-sm text-chalk-soft">
+          <span className="text-chalk-faint">with Chalk</span> {summary.agreed.record}
+          {summary.agreed.bets ? (
+            <>
+              {" "}
+              <span className={summary.agreed.profit >= 0 ? "text-win" : "text-loss"}>
+                {money(summary.agreed.profit)}
+              </span>{" "}
+              <span className="text-chalk-faint">({summary.agreed.bets})</span>
+            </>
+          ) : null}
+          <span className="mx-2 text-chalk-faint">·</span>
+          <span className="text-chalk-faint">against Chalk</span> {summary.against.record}
+          {summary.against.bets ? (
+            <>
+              {" "}
+              <span className={summary.against.profit >= 0 ? "text-win" : "text-loss"}>
+                {money(summary.against.profit)}
+              </span>{" "}
+              <span className="text-chalk-faint">({summary.against.bets})</span>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
       {summary.total === 0 ? (
         <p className="panel mt-4 px-4 py-6 text-sm text-chalk-soft">
           No bets logged yet. The form above writes straight to the log.
@@ -123,7 +154,7 @@ export default async function BetsPage() {
                 {open.length ? (
                   <>
                     <tr className="border-t border-panel-rule">
-                      <td colSpan={13} className="label bg-white/[0.02] py-1.5 pl-3">Open</td>
+                      <td colSpan={14} className="label bg-white/[0.02] py-1.5 pl-3">Open</td>
                     </tr>
                     {open.map((b) => <Row key={b.id} bet={b} label={labelFor(b)} />)}
                   </>
@@ -131,7 +162,7 @@ export default async function BetsPage() {
                 {graded.length ? (
                   <>
                     <tr className="border-t border-panel-rule">
-                      <td colSpan={13} className="label bg-white/[0.02] py-1.5 pl-3">Graded</td>
+                      <td colSpan={14} className="label bg-white/[0.02] py-1.5 pl-3">Graded</td>
                     </tr>
                     {graded.map((b) => <Row key={b.id} bet={b} running={b.running} label={labelFor(b)} />)}
                   </>
@@ -143,6 +174,10 @@ export default async function BetsPage() {
       )}
 
       <p className="mt-5 text-xs leading-relaxed text-chalk-faint">
+        Chalk is what our own number said for that game when the bet was
+        logged, from the bettor's side, and it is green when the number taken
+        beat it. Moneyline and anytime touchdown have no Chalk number, so they
+        sit out of the with and against split.
         Close is the closing line for a spread or total and the closing price
         for a moneyline or anytime touchdown. CLV is points of line on the first
         two and percentage points of implied probability on the other two, and

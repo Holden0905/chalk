@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FitText from "./FitText";
 import type { BoardGame } from "@/lib/board";
 import { city, nickname } from "@/lib/teams";
 import { kickoff, plain, spread as fmtSpread } from "@/lib/format";
@@ -27,11 +28,11 @@ function linked(abbr: string | null, className: string, children: React.ReactNod
 function TeamRow({ abbr, name, rating, rank }: BoardGame["home"]) {
   return linked(
     abbr,
-    "flex flex-wrap items-baseline justify-between gap-x-3 py-0.5",
+    "flex items-baseline justify-between gap-x-3 py-0.5",
     <>
-      <span className="min-w-0">
-        <span className="chalk d-team font-bold whitespace-nowrap">{nickname(name)}</span>
-        <span className="label ml-2 normal-case tracking-normal text-[0.6875rem]">{city(name)}</span>
+      <span className="flex min-w-0 flex-1 items-baseline gap-2">
+        <FitText boxClassName="flex-1" className="chalk d-team font-bold">{nickname(name)}</FitText>
+        <span className="label shrink-0 normal-case tracking-normal text-[0.6875rem]">{city(name)}</span>
       </span>
       <span className="tabular shrink-0 text-xs text-chalk-soft">{ratingText(rank, rating)}</span>
     </>,
@@ -66,7 +67,7 @@ export default function GameCard({ game }: { game: BoardGame }) {
   const r = game.result;
 
   return (
-    <article className="board-card px-4 py-4 sm:px-5">
+    <article className="board-card min-w-0 px-4 py-4 sm:px-5">
       <div className="flex items-baseline justify-between gap-3">
         <span className="label">{kickoff(game.commenceTime)}</span>
         {r ? (

@@ -3,14 +3,20 @@ import { db, selectAll } from "./supabase";
 import { getBoard } from "./board";
 import { tdPlayersByGame } from "./tdData";
 import { toAbbr } from "./teams";
+import { chalkLineFor, chalkEdge } from "./chalkLine.mjs";
+import { currentSeason } from "./board";
+import weights from "@/data/weights.json";
 
 export const MARKETS = ["spread", "total", "moneyline", "anytime_td"] as const;
 export type Market = (typeof MARKETS)[number];
+
+export { chalkEdge };
 
 export type Bet = {
   id: number; placed_at: string; game_id: string | null; commence_time: string | null;
   market: string; side: string; line: string | number | null; price: number | null;
   stake: string | number | null; book: string | null; note: string | null;
+  chalk_line: string | number | null;
   closing_line: string | number | null; closing_price: number | null;
   clv_points: string | number | null; result: string | null;
   profit: string | number | null; graded_at: string | null;
@@ -74,6 +80,22 @@ export async function getBetsPage() {
     return { ...b, running };
   });
 
+  // Split the graded book by whether the number taken beat Chalk's own.
+  const lean = (b: Bet) =>
+    chalkEdge({ market: b.market, side: b.side, line: num(b.line), chalkLine: num(b.chalk_line) });
+  const tally = (rows: Bet[]) => {
+    const w = rows.filter((b) => b.result === "win").length;
+    const l = rows.filter((b) => b.result === "loss").length;
+    const p = rows.filter((b) => b.result === "push").length;
+    return {
+      bets: rows.length,
+      record: rows.length ? `${w}-${l}${p ? `-${p}` : ""}` : "–",
+      profit: rows.reduce((a, b) => a + (num(b.profit) ?? 0), 0),
+    };
+  };
+  const agreed = tally(graded.filter((b) => (lean(b) ?? 0) > 0));
+  const against = tally(graded.filter((b) => (lean(b) ?? 0) < 0));
+
   const wins = graded.filter((b) => b.result === "win").length;
   const losses = graded.filter((b) => b.result === "loss").length;
   const pushes = graded.filter((b) => b.result === "push").length;
@@ -90,9 +112,36 @@ export async function getBetsPage() {
     avgClv: clv.length ? clv.reduce((a, b) => a + b, 0) / clv.length : null,
     positiveClv: clv.filter((c) => c > 0).length,
     clvCount: clv.length,
+    agreed,
+    against,
   };
 
   return { games, books, open, graded: gradedWithRunning, summary, playersByGameId, season: board.season };
+}
+
+/** Chalk's own number for this bet, at the moment it is being logged. */
+export async function chalkLineForBet(
+  market: string,
+  side: string,
+  game: { home_team: string; away_team: string },
+): Promise<number | null> {
+  if (market !== "spread" && market !== "total") return null;
+  const season = currentSeason();
+  const ratings = await selectAll<Record<string, unknown>>("chalk_ratings", "*", (q) =>
+    q.eq("season", season),
+  );
+  if (ratings.length === 0) return null;
+  const latest = Math.max(...ratings.map((r) => Number(r.week)));
+  const current = ratings.filter((r) => Number(r.week) === latest);
+  const value = chalkLineFor({
+    market, side,
+    homeTeam: game.home_team,
+    homeAbbr: toAbbr(game.home_team),
+    awayAbbr: toAbbr(game.away_team),
+    ratings: current,
+    weights,
+  });
+  return value == null ? null : Number(value.toFixed(2));
 }
 
 /** Shared by the form action: the game a bet is being placed on. */

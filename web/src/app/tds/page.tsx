@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FitText from "@/components/FitText";
 import TdSlip from "@/components/TdSlip";
 import { getTdBoard } from "@/lib/tdData";
 import { NFLVERSE_TO_ODDS, nickname } from "@/lib/teams";
@@ -56,8 +57,10 @@ export default async function TdsPage({
           {board.games.map((g: any) => (
             <article key={g.key} className="board-card px-4 py-4 sm:px-5">
               <div className="flex items-baseline justify-between gap-3">
-                <h2 className="chalk d-team font-bold whitespace-nowrap">
-                  {full(g.away)} <span className="d-at text-chalk-faint">at</span> {full(g.home)}
+                <h2 className="min-w-0 flex-1">
+                  <FitText boxClassName="flex-1" className="chalk d-team font-bold">
+                    {full(g.away)} <span className="d-at text-chalk-faint">at</span> {full(g.home)}
+                  </FitText>
                 </h2>
                 <span className="label shrink-0">
                   {g.gameday?.slice(5)} {g.gametime}

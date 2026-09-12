@@ -196,8 +196,8 @@ body > * {
 .d-section  { font-size: 2.9rem; line-height: 0.8; }
 .d-nav      { font-size: 1.8rem; line-height: 0.9; }
 .d-day      { font-size: 2rem;   line-height: 0.85; }
-.d-team     { font-size: 2.3rem; line-height: 0.85; }
-.d-team-row { font-size: 1.7rem; line-height: 0.9; }
+.d-team     { font-size: 2.3rem; line-height: 0.85; white-space: nowrap; }
+.d-team-row { font-size: 1.7rem; line-height: 0.9; white-space: nowrap; }
 .d-at       { font-size: 1.4rem; line-height: 1; }
 
 @media (min-width: 640px) {

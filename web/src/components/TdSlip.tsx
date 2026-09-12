@@ -1,3 +1,4 @@
+import FitText from "@/components/FitText";
 import { NFLVERSE_TO_ODDS, nickname } from "@/lib/teams";
 
 type Player = {
@@ -24,9 +25,11 @@ export default function TdSlip({
 }) {
   return (
     <section className="mt-4 first:mt-0">
-      <h3 className="chalk d-team-row">
-        {full(team)} <span className="text-chalk-faint">vs</span> {full(opponent)}{" "}
-        <span className="text-chalk-faint">defense</span>
+      <h3>
+        <FitText className="chalk d-team-row">
+          {full(team)} <span className="text-chalk-faint">vs</span> {full(opponent)}{" "}
+          <span className="text-chalk-faint">defense</span>
+        </FitText>
       </h3>
       <p className="label mt-1 normal-case tracking-normal text-[0.6875rem]">
         <span className="tabular">{f(defence?.rushTdPg)}</span> rush TD/g

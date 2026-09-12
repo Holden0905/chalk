@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/supabase";
-import { lookupGame, MARKETS, type Market } from "@/lib/betsData";
+import { chalkLineForBet, lookupGame, MARKETS, type Market } from "@/lib/betsData";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -47,12 +47,17 @@ export async function createBet(_prev: FormState, form: FormData): Promise<FormS
   if (!book) return { error: "Pick a book." };
   const note = String(form.get("note") ?? "").trim();
 
+  // Chalk's number is captured now, not read back later, because the rating
+  // moves every week and the question is what it said when the bet was made.
+  const chalk_line = await chalkLineForBet(market, side, game);
+
   const { error } = await db().from("chalk_bets").insert({
     game_id: game.game_id,
     commence_time: game.commence_time,
     market,
     side,
     line,
+    chalk_line,
     price: Math.round(price),
     stake,
     book,
@@ -62,7 +67,8 @@ export async function createBet(_prev: FormState, form: FormData): Promise<FormS
 
   revalidatePath("/bets");
   const shown = market === "moneyline" || market === "anytime_td" ? side : `${side} ${line}`;
-  return { ok: `Logged ${market} ${shown} at ${price > 0 ? `+${price}` : price} for ${stake}.` };
+  const vs = chalk_line == null ? "" : ` Chalk had ${chalk_line}.`;
+  return { ok: `Logged ${market} ${shown} at ${price > 0 ? `+${price}` : price} for ${stake}.${vs}` };
 }
 
 export async function deleteBet(_prev: FormState, form: FormData): Promise<FormState> {

@@ -3,6 +3,33 @@ const readline = require('node:readline/promises');
 const { createClient } = require('@supabase/supabase-js');
 const teams = require('./teams.js');
 const { MARKETS, impliedProb } = require('./bets.js');
+const weights = require('./weights.json');
+
+// The NFL season runs into the new year; January belongs to the prior season.
+const currentSeason = (now = new Date()) =>
+  now.getUTCMonth() >= 2 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+
+/**
+ * Chalk's own number for this game right now. Uses the same module the web
+ * form uses, so a bet logged here and one logged there record the same thing.
+ */
+async function chalkLineForBet(supabase, market, side, game) {
+  if (market !== 'spread' && market !== 'total') return null;
+  const { chalkLineFor } = await import('./web/src/lib/chalkLine.mjs');
+  const season = currentSeason();
+  const ratings = await selectAll(supabase, 'chalk_ratings', '*', (q) => q.eq('season', season));
+  if (ratings.length === 0) return null;
+  const latest = Math.max(...ratings.map((r) => Number(r.week)));
+  const value = chalkLineFor({
+    market, side,
+    homeTeam: game.home_team,
+    homeAbbr: teams.toAbbr(game.home_team),
+    awayAbbr: teams.toAbbr(game.away_team),
+    ratings: ratings.filter((r) => Number(r.week) === latest),
+    weights,
+  });
+  return value == null ? null : Number(value.toFixed(2));
+}
 
 function requireEnv(name) {
   const raw = process.env[name];
@@ -195,12 +222,15 @@ async function add(supabase, args) {
     process.exit(1);
   }
 
+  const chalkLine = await chalkLineForBet(supabase, market, side, game);
+
   const row = {
     game_id: game.game_id,
     commence_time: game.commence_time,
     market,
     side,
     line: needsLine ? Number(args.line) : null,
+    chalk_line: chalkLine,
     price: Math.round(Number(args.price)),
     stake: Number(args.stake),
     book: String(args.book),
@@ -223,6 +253,7 @@ async function add(supabase, args) {
   console.log(`  ${describe(game)}`);
   console.log(`  ${market} ${row.side}${lineStr} at ${priceStr} for ${row.stake} (${row.book})`);
   console.log(`  implied ${(impliedProb(row.price) * 100).toFixed(1)}%` +
+              (chalkLine == null ? '' : `   chalk ${chalkLine}`) +
               (row.note ? `   note: ${row.note}` : ''));
 }
 
@@ -246,7 +277,7 @@ async function list(supabase) {
 
   const header =
     '  ' + pad('#', 5) + pad('when', 18) + pad('market', 11) + pad('side', 20) +
-    pad('line', 8, false) + pad('price', 8, false) + pad('stake', 8, false) +
+    pad('line', 8, false) + pad('chalk', 8, false) + pad('price', 8, false) + pad('stake', 8, false) +
     pad('book', 12) + pad('CLV', 8, false) + pad('result', 8) + pad('profit', 10, false) +
     pad('running', 10, false);
 
@@ -256,7 +287,8 @@ async function list(supabase) {
     for (const b of open) {
       console.log('  ' + pad(b.id, 5) + pad(String(b.commence_time).replace('T', ' ').slice(0, 16), 18) +
         pad(b.market, 11) + pad(b.side, 20) +
-        pad(b.line ?? '-', 8, false) + pad(b.price > 0 ? `+${b.price}` : b.price, 8, false) +
+        pad(b.line ?? '-', 8, false) + pad(b.chalk_line ?? '-', 8, false) +
+        pad(b.price > 0 ? `+${b.price}` : b.price, 8, false) +
         pad(Number(b.stake).toFixed(2), 8, false) + pad(b.book, 12) +
         pad('-', 8, false) + pad('-', 8) + pad('-', 10, false) + pad('-', 10, false));
     }
@@ -285,7 +317,8 @@ async function list(supabase) {
       }
       console.log('  ' + pad(b.id, 5) + pad(String(b.commence_time).replace('T', ' ').slice(0, 16), 18) +
         pad(b.market, 11) + pad(b.side, 20) +
-        pad(b.line ?? '-', 8, false) + pad(b.price > 0 ? `+${b.price}` : b.price, 8, false) +
+        pad(b.line ?? '-', 8, false) + pad(b.chalk_line ?? '-', 8, false) +
+        pad(b.price > 0 ? `+${b.price}` : b.price, 8, false) +
         pad(Number(b.stake).toFixed(2), 8, false) + pad(b.book, 12) +
         pad(b.clv_points == null ? '-' : money(b.clv_points), 8, false) +
         pad(b.result ?? '-', 8) + pad(money(b.profit), 10, false) + pad(money(running), 10, false));
