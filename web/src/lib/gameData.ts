@@ -66,6 +66,29 @@ export type Quote = {
 
 export type Side = { abbr: string | null; name: string; rating: number | null; rank: number | null };
 
+/** One capture: every book was read at the same instant, so this is a column. */
+export type Capture = {
+  capturedAt: string;
+  /** How many books were quoting this game at that instant. */
+  books: number;
+  dkSpread: number | null;
+  dkTotal: number | null;
+  /**
+   * Books present in this capture and the one before it that changed their
+   * spread or total in between. Null for the first capture, which has nothing
+   * to be compared against.
+   */
+  moved: number | null;
+  /**
+   * How many books could have moved: those quoting the game in both captures.
+   * The denominator is this and not `books`, because a book that has just
+   * appeared had no earlier number to change.
+   */
+  comparable: number | null;
+  /** Books quoting the game here that were not in the previous capture. */
+  arrived: number | null;
+};
+
 /**
  * Every figure on a game page, gathered in one pass. The page is a read of a
  * single game across six tables, so the joining happens here and the components
@@ -83,6 +106,8 @@ export type Game = {
   chalk: { spreadHome: number | null; total: number | null };
   /** One point per capture per book, for the line history chart. */
   history: { capturedAt: string; book: string; spreadHome: number | null; total: number | null }[];
+  /** The same rows folded into one row per capture, for the slip under it. */
+  captures: Capture[];
   books: string[];
   /** The latest capture, one row per book. */
   latest: { capturedAt: string | null; quotes: Quote[] };
@@ -198,6 +223,48 @@ export async function getGame(gameId: string): Promise<Game | null> {
   }));
   const books = [...new Set(history.map((h) => h.book))].sort();
 
+  // Every book in one run is inserted by a single statement, so a capture is an
+  // exact timestamp rather than a window, and grouping on it is safe.
+  const byCapture = new Map<string, Map<string, { spread: number | null; total: number | null }>>();
+  for (const h of history) {
+    if (!byCapture.has(h.capturedAt)) byCapture.set(h.capturedAt, new Map());
+    byCapture.get(h.capturedAt)!.set(h.book, { spread: h.spreadHome, total: h.total });
+  }
+
+  const captures: Capture[] = [];
+  let previous: Map<string, { spread: number | null; total: number | null }> | null = null;
+  for (const at of [...byCapture.keys()].sort()) {
+    const quotes = byCapture.get(at)!;
+    let moved: number | null = null;
+    let comparable: number | null = null;
+    let arrived: number | null = null;
+    if (previous) {
+      moved = 0;
+      comparable = 0;
+      arrived = 0;
+      for (const [book, now] of quotes) {
+        const before = previous.get(book);
+        if (!before) {
+          arrived += 1;
+          continue;
+        }
+        comparable += 1;
+        if (before.spread !== now.spread || before.total !== now.total) moved += 1;
+      }
+    }
+    const dk = quotes.get("draftkings");
+    captures.push({
+      capturedAt: at,
+      books: quotes.size,
+      dkSpread: dk?.spread ?? null,
+      dkTotal: dk?.total ?? null,
+      moved,
+      comparable,
+      arrived,
+    });
+    previous = quotes;
+  }
+
   // The newest capture is the newest timestamp any book was seen at; a book
   // missing from that instant simply has no row in the best-price table.
   const latestAt = snapshots[snapshots.length - 1]?.captured_at ?? null;
@@ -281,6 +348,7 @@ export async function getGame(gameId: string): Promise<Game | null> {
     },
     chalk: { spreadHome: chalkSpreadHome, total: chalkTotal },
     history,
+    captures,
     books,
     latest: { capturedAt: latestAt, quotes },
     best,

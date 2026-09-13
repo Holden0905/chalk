@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BestPrices from "@/components/BestPrices";
+import CaptureSlip from "@/components/CaptureSlip";
 import FitText from "@/components/FitText";
 import InjurySlip from "@/components/InjurySlip";
 import LineHistory from "@/components/LineHistory";
@@ -246,6 +247,7 @@ export default async function GamePage({
           across {game.books.length} book{game.books.length === 1 ? "" : "s"}.
         </p>
         <LineHistory history={game.history} home={home.abbr} away={away.abbr} />
+        <CaptureSlip captures={game.captures} />
         <BestPrices latest={game.latest} best={game.best} home={home.abbr} away={away.abbr} />
       </section>
 
