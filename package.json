@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/grade.test.js && node test/ingest_pbp.test.js && node test/ingest_players.test.js && node test/rate.test.js && node test/finder.test.js && node test/bets.test.js && node test/ingest_games.test.js && node test/league.test.mjs",
+    "test": "node test/grade.test.js && node test/ingest_pbp.test.js && node test/ingest_players.test.js && node test/rate.test.js && node test/finder.test.js && node test/bets.test.js && node test/ingest_games.test.js && node test/league.test.mjs && node test/snapshot_context.test.js",
     "snapshot": "node snapshot.js",
     "grade": "node grade.js",
     "ingest:pbp": "node ingest_pbp.js",
@@ -14,6 +14,7 @@
     "residuals": "node residuals.js",
     "ingest:players": "node ingest_players.js",
     "snapshot:props": "node snapshot_props.js",
+    "snapshot:context": "node snapshot_context.js",
     "finder": "node finder.js",
     "bet": "node bet.js"
   },

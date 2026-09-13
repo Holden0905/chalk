@@ -14,9 +14,14 @@ function favourite(spreadHome: number | null, home: string | null, away: string 
 const ratingText = (rank: number | null, rating: number | null) =>
   `${rank != null ? `#${rank}` : "–"} · ${rating != null ? `${rating > 0 ? "+" : "−"}${Math.abs(rating).toFixed(1)}` : "–"}`;
 
+/**
+ * A team name keeps going to its own page. It sits above the card-wide link
+ * below it, which is what makes "anywhere except a team name" work: one
+ * stretched link covering the card, and these lifted over it.
+ */
 function linked(abbr: string | null, className: string, children: React.ReactNode) {
   return abbr ? (
-    <Link href={`/team/${abbr}`} className={`${className} hover:opacity-80`}>
+    <Link href={`/team/${abbr}`} className={`pointer-events-auto relative z-10 ${className} hover:opacity-80`}>
       {children}
     </Link>
   ) : (
@@ -24,18 +29,24 @@ function linked(abbr: string | null, className: string, children: React.ReactNod
   );
 }
 
-/** One team: name and city on the left, rank and rating on the right. */
+/**
+ * One team: name and city on the left, rank and rating on the right. Only the
+ * name is the link to the team page. The rank and rating are the card's own
+ * figures, so they fall through to the card link like everything else.
+ */
 function TeamRow({ abbr, name, rating, rank }: BoardGame["home"]) {
-  return linked(
-    abbr,
-    "flex items-baseline justify-between gap-x-3 py-0.5",
-    <>
-      <span className="flex min-w-0 flex-1 items-baseline gap-2">
-        <FitText boxClassName="flex-1" className="chalk d-team font-bold">{nickname(name)}</FitText>
-        <span className="label shrink-0 normal-case tracking-normal text-[0.6875rem]">{city(name)}</span>
-      </span>
+  return (
+    <div className="flex items-baseline justify-between gap-x-3 py-0.5">
+      {linked(
+        abbr,
+        "flex min-w-0 flex-1 items-baseline gap-2",
+        <>
+          <FitText boxClassName="flex-1" className="chalk d-team font-bold">{nickname(name)}</FitText>
+          <span className="label shrink-0 normal-case tracking-normal text-[0.6875rem]">{city(name)}</span>
+        </>,
+      )}
       <span className="tabular shrink-0 text-xs text-chalk-soft">{ratingText(rank, rating)}</span>
-    </>,
+    </div>
   );
 }
 
@@ -68,7 +79,16 @@ export default function GameCard({ game }: { game: BoardGame }) {
 
   return (
     <article className="board-card min-w-0 px-4 py-4 sm:px-5">
-      <div className="flex items-baseline justify-between gap-3">
+      {/* The whole card is a link to the game page. A stretched anchor rather
+          than a wrapper, because the team names inside are links of their own
+          and an anchor cannot be nested inside another one. */}
+      <Link
+        href={`/game/${game.gameId}`}
+        className="absolute inset-0 z-0 rounded-[2px]"
+        aria-label={`${nickname(game.away.name)} at ${nickname(game.home.name)}, game page`}
+      />
+
+      <div className="pointer-events-none relative flex items-baseline justify-between gap-3">
         <span className="label">{kickoff(game.commenceTime)}</span>
         {r ? (
           <span className="tabular text-sm text-chalk">
@@ -85,14 +105,16 @@ export default function GameCard({ game }: { game: BoardGame }) {
       {/* Stacked at every width. Side by side puts each name in half a card,
           which is narrower than "Commanders" or "Buccaneers" at display size
           and breaks them mid-word. */}
-      <div className="mt-2">
+      {/* Everything here lets taps through to the card link underneath, except
+          the two team names, which take them back. */}
+      <div className="pointer-events-none relative mt-2">
         <TeamRow {...game.away} />
         <div className="chalk d-at py-0.5 text-chalk-faint">at</div>
         <TeamRow {...game.home} />
       </div>
 
       {/* Flat panel. No texture, typewriter numerals, so the figures read. */}
-      <div className="slip -mx-4 -mb-4 mt-4 rounded-b-[2px] border-b-0 px-4 pt-3 pb-2 sm:-mx-5 sm:-mb-4 sm:px-5">
+      <div className="pointer-events-none relative slip -mx-4 -mb-4 mt-4 rounded-b-[2px] border-b-0 px-4 pt-3 pb-2 sm:-mx-5 sm:-mb-4 sm:px-5">
         <table className="tabular w-full text-[0.8125rem]">
           <thead>
             <tr className="label">

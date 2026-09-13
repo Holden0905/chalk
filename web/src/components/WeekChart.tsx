@@ -70,6 +70,12 @@ export default function WeekChart({
     return d.trim();
   };
 
+  // A filter region is a percentage of the bounding box, so a series that never
+  // moves has a box zero pixels tall and the chalk filter erases it. Draw those
+  // clean instead.
+  const chalk = (pts: { week: number; v: number }[]) =>
+    pts.every((p) => p.v === pts[0].v) ? undefined : "url(#chalk-stroke)";
+
   const ticks = [max, (max + min) / 2, min].map((v) => Math.round(v * 10) / 10);
   const weekLabels = [1, 4, 7, 10, 13, 16, 18];
 
@@ -113,7 +119,7 @@ export default function WeekChart({
             strokeWidth="3.2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            filter="url(#chalk-stroke)"
+            filter={chalk(points(all))}
           />
         ) : null}
 
@@ -129,7 +135,7 @@ export default function WeekChart({
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                filter="url(#chalk-stroke)"
+                filter={chalk(pts)}
               />
               {/* A season with one week played has no line, so it needs the dot. */}
               {pts.map((p) => (

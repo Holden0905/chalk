@@ -20,6 +20,8 @@ clients have no access.
 | `chalk_prop_snapshots` | Anytime-touchdown prices, one row per bookmaker per player per capture. | `migrations/008_props.sql` |
 | `chalk_bets` | The bet log: what was taken, at what number and price, plus the closing line, CLV, result and profit once graded. | `migrations/009_bets.sql` |
 | `chalk_ratings` | One row per team per week: offense, defense, special teams and total rating in points of expected margin, plus the scoring ratings and league average total that an implied total is built from (apply `total_scale` to the combined adjustment when reconstructing one). Computed **as of** that week from games played before it. | `migrations/004_ratings.sql`, `migrations/006_scoring.sql` |
+| `chalk_injuries` | One row per player per capture, from ESPN's league-wide injury report. Team is the Odds API name, so it joins to everything else. Players ESPN lists as active are not stored; what is left is the game-day designations plus injured reserve and suspension. | `migrations/012_context.sql` |
+| `chalk_game_news` | One row per game per capture: ESPN's pregame preview headline and description, with the story text, the team news items, venue, weather, win probability and book lines kept whole in `raw` jsonb. | `migrations/012_context.sql` |
 | `chalk_games` | One row per **regular season** game since 2022, from the nflverse games file. Schedule, rest days, venue, the closing spread and total, and the final score, plus generated `total_points`, `home_margin`, `home_covered`, `went_over` and `total_diff`. Feeds `/league`. | `migrations/011_games.sql` |
 
 `chalk_results.game_id` is unique and matches `chalk_odds_snapshots.game_id`,
@@ -37,6 +39,20 @@ favorite is **positive**. The second sign points the same way as `home_margin`,
 which is what makes "priced at +1.5, played at +2.1" a subtraction rather than a
 puzzle; `web/src/lib/league.mjs` flips it once, in `homeLine()`, for anything
 displayed as a line. Nothing else should flip it again.
+
+**The two context tables are captures, not current state.** Every run writes a
+new day's rows rather than updating yesterday's, which is the whole point: a
+quarterback downgraded to doubtful on Saturday night is the sort of thing that
+explains a two-point move, and without a capture history there is no way to ask
+that question afterwards. Re-running on the same day overwrites that day's
+capture, which is what makes the Saturday and Sunday jobs safe to retry.
+
+ESPN writes team names character for character as The Odds API does, for all 32
+clubs, but `espnTeamToOdds` in `snapshot_context.js` still routes them through
+`teams.js` rather than passing the string along, so an unfamiliar name is
+counted and skipped instead of being written as a team nothing can join to.
+`test/snapshot_context.test.js` pins all 32 against a fixture, so the day ESPN
+renames a club the tests say so.
 
 `chalk_games` overlaps `chalk_results` on purpose. `chalk_results` only holds
 games Chalk graded from its own odds snapshots, which begins the day the
@@ -94,7 +110,7 @@ as `UNVERIFIED`; confirm them once those teams appear in a snapshot.
 | --- | --- | --- |
 | `.github/workflows/snapshot.yml` | `0 14 * * *` daily<br>`0 0 * * 5` Thu night ET (TNF)<br>`30 16 * * 0` Sun early slate<br>`0 20 * * 0` Sun late afternoon<br>`0 0 * * 1` Sun night ET (SNF)<br>`0 0 * * 2` Mon night ET (MNF) | `npm run snapshot` — captures current lines for every upcoming game. |
 | `.github/workflows/grade.yml` | `0 12 * * 2` Tuesday<br>`0 12 * * 5` Friday | `npm run grade` — grades completed games against their closing line. |
-| `.github/workflows/props.yml` | `0 14 * * 6` Saturday | `npm run snapshot:props` — anytime-TD prices for every game in the next 7 days. The events endpoint is free, so this costs one API credit per game. |
+| `.github/workflows/props.yml` | `0 14 * * 6` Saturday<br>`0 14 * * 0` Sunday | Saturday: `npm run snapshot:props` — anytime-TD prices for every game in the next 7 days, one API credit per game — then `npm run snapshot:context`. Sunday: context only, for the overnight injury changes. The props step is skipped on the Sunday schedule because it costs credits and the prices barely move; a manual dispatch runs both. |
 | `.github/workflows/ingest_pbp.yml` | `0 13 * * 2` Tuesday | `npm run ingest:games`, then `npm run ingest:pbp`, then `npm run ingest:players`, then `npm run rate` — refreshes the games table, rebuilds the current season's team weeks, player and defense weeks from nflverse, then rates every team as of the upcoming week. Runs an hour after grade. Dispatch takes an optional `season` input for backfills. |
 
 Both run on `ubuntu-latest` with Node 22, both support `workflow_dispatch`,
@@ -130,6 +146,7 @@ npm run rate -- 2025 10      # ratings as of week 10; bare `npm run rate` does c
 npm run backtest -- 2024 2025   # backtest spreads and totals; any number of seasons, pooled
 npm run residuals            # closing-line cover/over rates by bucket, 2024-2025
 npm run snapshot:props       # anytime-TD prices for the next 7 days
+npm run snapshot:context     # ESPN injuries and per-game news (free, no key)
 npm run finder -- 2026 1     # TD board for a week: usage, matchup, best price
 npm test           # pure-logic tests; no credentials or network needed
 ```
@@ -282,6 +299,15 @@ Phase 1 ships the app shell, the Board and the About page. Teams, Stats, TDs
 and Bets are in the nav but stubbed. See `web/README.md` for the four
 environment variables and the Vercel setup, the important part being that the
 project Root Directory must be `web`.
+
+`/game/<game_id>` is one game in full, reached by tapping a Board card anywhere
+except a team name, which keeps going to `/team`. The card-wide link is a
+stretched anchor under the card with the two team names lifted over it, because
+an anchor cannot be nested inside another one. The page is the matchup with
+Chalk's number beside the market's, the full line history across every book and
+capture, the best number on offer at each book, both injury reports, the news
+from the last capture, this game's TD board, and once it is graded the score,
+the ATS and over/under result, and any bets logged on it with their CLV.
 
 `/league` is the league-wide view, built entirely from `chalk_games`: scoring,
 the market, sixteen situational splits and a per-week chart, as a comparison
