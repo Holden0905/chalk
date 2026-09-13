@@ -3,36 +3,43 @@ name: snapshot
 # Capture times are NFL kickoff slots in Eastern, expressed in UTC.
 # While EDT is in effect (UTC-4) they line up as:
 #   14:17 UTC daily      -> 10:17 AM ET  baseline capture
-#   Fri 00:00 UTC        -> Thu  8:00 PM ET  (TNF)
-#   Sun 16:30 UTC        -> Sun 12:30 PM ET  (early slate)
-#   Sun 20:00 UTC        -> Sun  4:00 PM ET  (late afternoon slate)
-#   Mon 00:00 UTC        -> Sun  8:00 PM ET  (SNF)
-#   Tue 00:00 UTC        -> Mon  8:00 PM ET  (MNF)
-# The daily baseline runs at :17 rather than :00. GitHub queues scheduled runs
-# league-wide and the top of the hour is the most contended minute of all, so an
-# on-the-hour job is the most likely to be delayed or dropped. The baseline has
-# no kickoff to be early for, so it costs nothing to move it off the peak.
+#   Thu 23:49 UTC        -> Thu  7:49 PM ET  (TNF, 8:15 kickoff)
+#   Sun 16:19 UTC        -> Sun 12:19 PM ET  (early slate, 1:00 kickoff)
+#   Sun 19:49 UTC        -> Sun  3:49 PM ET  (late afternoon slate, 4:05/4:25)
+#   Sun 23:49 UTC        -> Sun  7:49 PM ET  (SNF, 8:20 kickoff)
+#   Mon 23:49 UTC        -> Mon  7:49 PM ET  (MNF, 8:15 kickoff)
 #
-# The five capture slots below are deliberately NOT moved. Each is timed to sit
-# just before a kickoff, so moving one later spends the very margin it exists
-# for. Buying them the same protection means moving them EARLIER, which trades
-# closing-line accuracy for reliability -- a real decision, not a tidy-up, so it
-# is left alone here.
+# Nothing here runs on the hour. GitHub queues scheduled runs across all of
+# GitHub and :00 is by far the most contended minute, so an on-the-hour job is
+# the likeliest to be delayed or skipped outright -- and a skipped slot is not
+# backfilled.
+#
+# The five capture slots each sit a few minutes earlier than the kickoff slot
+# they are named for, which buys margin in the same move: a capture that lands
+# late is worth less than one that lands early, because the line only stops
+# being the closing line once the ball is kicked. Between 16 and 41 minutes of
+# room, depending on the slot.
+#
+# NOTE ON THE DAY FIELD. Three of these used to be midnight UTC and are now
+# 23:49 the day before, so their day-of-week moved back one as well:
+#   TNF  Fri 00:00 -> Thu 23:49   (cron day 5 -> 4)
+#   SNF  Mon 00:00 -> Sun 23:49   (cron day 1 -> 0)
+#   MNF  Tue 00:00 -> Mon 23:49   (cron day 2 -> 1)
+# Editing the time without the day would have left them firing a full day late.
 #
 # DST ends Sun Nov 1 2026, when ET becomes EST (UTC-5). Cron here is fixed to
 # UTC, so from that date every slot lands one hour EARLIER in ET -- the Sunday
-# early capture becomes 11:30 AM ET, roughly 90 minutes before a 1:00 PM
-# kickoff instead of 30. Shift these expressions back an hour if the captures
+# early capture becomes 11:19 AM ET, roughly 100 minutes before a 1:00 PM
+# kickoff instead of 41. Shift these expressions forward an hour if the captures
 # need to stay tight to kickoff through the end of the season.
 on:
   schedule:
     - cron: '17 14 * * *'  # daily baseline
-    - cron: '0 0 * * 5'    # Thu night ET (TNF)
-    - cron: '30 16 * * 0'  # Sun early slate ET (30 min of margin vs. 1:00 PM ET kickoff,
-                           # since GitHub delays scheduled runs under load)
-    - cron: '0 20 * * 0'   # Sun late afternoon slate ET
-    - cron: '0 0 * * 1'    # Sun night ET (SNF)
-    - cron: '0 0 * * 2'    # Mon night ET (MNF)
+    - cron: '49 23 * * 4'  # Thu 7:49 PM ET, 26 min before a TNF kickoff
+    - cron: '19 16 * * 0'  # Sun 12:19 PM ET, 41 min before the early slate
+    - cron: '49 19 * * 0'  # Sun 3:49 PM ET, 16 min before the late slate
+    - cron: '49 23 * * 0'  # Sun 7:49 PM ET, 31 min before an SNF kickoff
+    - cron: '49 23 * * 1'  # Mon 7:49 PM ET, 26 min before an MNF kickoff
   workflow_dispatch:
 
 jobs:

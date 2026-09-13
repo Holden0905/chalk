@@ -108,26 +108,31 @@ as `UNVERIFIED`; confirm them once those teams appear in a snapshot.
 
 | Workflow | Schedule (UTC) | What it does |
 | --- | --- | --- |
-| `.github/workflows/snapshot.yml` | `17 14 * * *` daily<br>`0 0 * * 5` Thu night ET (TNF)<br>`30 16 * * 0` Sun early slate<br>`0 20 * * 0` Sun late afternoon<br>`0 0 * * 1` Sun night ET (SNF)<br>`0 0 * * 2` Mon night ET (MNF) | `npm run snapshot` — captures current lines for every upcoming game. |
+| `.github/workflows/snapshot.yml` | `17 14 * * *` daily<br>`49 23 * * 4` Thu night ET (TNF)<br>`19 16 * * 0` Sun early slate<br>`49 19 * * 0` Sun late afternoon<br>`49 23 * * 0` Sun night ET (SNF)<br>`49 23 * * 1` Mon night ET (MNF) | `npm run snapshot` — captures current lines for every upcoming game. |
 | `.github/workflows/grade.yml` | `23 12 * * 2` Tuesday<br>`23 12 * * 5` Friday | `npm run grade` — grades completed games against their closing line. |
 | `.github/workflows/props.yml` | `37 14 * * 6` Saturday<br>`37 14 * * 0` Sunday | Saturday: `npm run snapshot:props` — anytime-TD prices for every game in the next 7 days, one API credit per game — then `npm run snapshot:context`. Sunday: context only, for the overnight injury changes. The props step is skipped on the Sunday schedule because it costs credits and the prices barely move; a manual dispatch runs both. |
 | `.github/workflows/ingest_pbp.yml` | `23 13 * * 2` Tuesday | `npm run ingest:games`, then `npm run ingest:pbp`, then `npm run ingest:players`, then `npm run rate` — refreshes the games table, rebuilds the current season's team weeks, player and defense weeks from nflverse, then rates every team as of the upcoming week. Runs an hour after grade. Dispatch takes an optional `season` input for backfills. |
 
-Both run on `ubuntu-latest` with Node 22, both support `workflow_dispatch`,
-and both read `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `ODDS_API_KEY` from
-repository secrets (Settings → Secrets and variables → Actions).
+All four run on `ubuntu-latest` with Node 22, all four support
+`workflow_dispatch`, and all four read `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+and `ODDS_API_KEY` from repository secrets (Settings → Secrets and variables →
+Actions).
 
-Two things to know about the schedules:
+Things to know about the schedules:
 
-- **Nothing is scheduled on the hour, except the kickoff captures.** GitHub
-  queues scheduled runs across all of GitHub and `:00` is by far the most
-  contended minute, so an on-the-hour job is the likeliest to be delayed or
-  dropped. Anything without a kickoff to be early for therefore sits on an odd
-  minute. The five capture slots in `snapshot.yml` are the exception: each is
-  timed to land just before a kickoff, and moving one later would spend the
-  margin it exists for. Giving those the same protection means moving them
-  *earlier*, trading closing-line accuracy for reliability — a real decision
-  rather than a tidy-up, so they are still on the hour.
+- **Nothing is scheduled on the hour.** GitHub queues scheduled runs across all
+  of GitHub and `:00` is by far the most contended minute, so an on-the-hour job
+  is the likeliest to be delayed or dropped, and a skipped slot is never
+  backfilled. The five capture slots in `snapshot.yml` were each moved eleven
+  minutes earlier rather than later, which buys margin in the same move: a
+  capture that lands after kickoff is worth nothing, so the cost of being early
+  is a slightly less final closing line and the cost of being late is the whole
+  row. They now sit between 16 and 41 minutes ahead of their kickoff.
+- **Three of those crons changed their day field, not just their time.** TNF,
+  SNF and MNF were midnight UTC and are now `23:49` the day before, so the
+  day-of-week moved back one as well (`5`→`4`, `1`→`0`, `2`→`1`). Editing the
+  time alone would have left them firing a full day late, which is the kind of
+  thing that looks like the schedule silently not working.
 - **A scheduled run is not late until it is very late.** GitHub delays cron by
   an hour or more under load and does not backfill a slot it skips, so a missing
   run is only evidence of a problem once two or three of the same slot in a row
