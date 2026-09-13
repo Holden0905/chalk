@@ -1,0 +1,42 @@
+# Chalk's scheduled captures, running on Defiant.
+#
+# One service. The image carries the ingest scripts and a cron daemon; the three
+# keys arrive at runtime from the .env sitting beside this file and are never
+# built into the image. Logs land on the host so they outlive a rebuild.
+services:
+  chalk-cron:
+    build: .
+    image: chalk-cron:latest
+    container_name: chalk-cron
+    restart: unless-stopped
+
+    # Read from the host at `docker compose up`, injected into the container
+    # environment. The entrypoint then hands them to cron, which does not
+    # inherit an environment of its own.
+    env_file:
+      - .env
+
+    environment:
+      # Everything in docker/crontab is written in this zone.
+      TZ: America/Chicago
+
+    volumes:
+      # The only thing that needs to survive the container.
+      - ./logs:/app/logs
+
+    # Healthy means something ran in the last 26 hours, which the daily 9:17am
+    # snapshot guarantees. `docker compose ps` then answers "is it still going".
+    healthcheck:
+      test: ["CMD", "/app/docker/healthcheck.sh"]
+      interval: 30m
+      timeout: 10s
+      retries: 2
+      start_period: 2m
+
+    # Cron writes nothing of consequence to stdout, but the per-run summary
+    # lines do go there, and an unbounded json log on a NAS is a slow leak.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

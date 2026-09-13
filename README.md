@@ -106,6 +106,18 @@ as `UNVERIFIED`; confirm them once those teams appear in a snapshot.
 
 ## Workflows
 
+**These are the fallback.** The captures run on Defiant, a UGOS NAS, as the
+`chalk-cron` container defined by `Dockerfile` and `docker-compose.yml` at the
+repo root, scheduled by `docker/crontab` on America/Chicago time. `RUNBOOK.md`
+covers installing, checking and updating it. The workflows below are the same
+jobs on the same cadence, kept so there is something to fall back to when
+Defiant is down.
+
+Note that while both are enabled they fire on the same minute during CDT, which
+duplicates snapshot rows and spends Odds API credits twice; the last section of
+`RUNBOOK.md` has the `gh workflow disable` commands to make Actions a true
+standby.
+
 | Workflow | Schedule (UTC) | What it does |
 | --- | --- | --- |
 | `.github/workflows/snapshot.yml` | `17 14 * * *` daily<br>`49 23 * * 4` Thu night ET (TNF)<br>`19 16 * * 0` Sun early slate<br>`49 19 * * 0` Sun late afternoon<br>`49 23 * * 0` Sun night ET (SNF)<br>`49 23 * * 1` Mon night ET (MNF) | `npm run snapshot` — captures current lines for every upcoming game. |

@@ -1,6 +1,9 @@
 .env
 node_modules/
 
+# Written by the chalk-cron container on Defiant, bind-mounted from the host.
+logs/
+
 # Next.js build output and local env live under web/
 web/.next/
 web/out/

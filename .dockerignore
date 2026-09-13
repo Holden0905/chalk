@@ -1,0 +1,23 @@
+# Secrets never enter the image. They arrive at runtime through compose's
+# env_file, which reads the host's .env into the container environment.
+.env
+.env.*
+
+# The web app is deployed to Vercel and has its own lockfile and node_modules.
+web/
+
+# Rebuilt inside the image by npm ci.
+node_modules/
+
+# The container runs jobs, it does not run tests. test/league.test.mjs also
+# imports from web/, which is excluded above, so shipping test/ would ship one
+# test that cannot pass. Tests run on a dev machine and in CI.
+test/
+
+# Not needed at runtime.
+.git/
+.github/
+.claude/
+.mcp.json
+logs/
+*.log

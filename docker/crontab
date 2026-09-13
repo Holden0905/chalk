@@ -1,0 +1,39 @@
+# Chalk captures on Defiant. Times are America/Chicago, set by the entrypoint
+# via /etc/localtime, so these track US daylight saving on their own -- unlike
+# the GitHub Actions crons, which are pinned to UTC and drift an hour when the
+# clocks change. There is nothing to adjust on Nov 1.
+#
+# Each line hands off to run-job.sh, which logs the run to /app/logs, records
+# the Odds API budget left, and stamps a heartbeat. Edit here, then rebuild.
+#
+# Cron gives a job almost no environment of its own, so both of these matter:
+# without PATH there is no node or npm on it at all.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# m  h  dom mon dow  command
+#
+# --- lines: the daily baseline, then one capture just before each kickoff slot
+17  9   *   *   *    /app/docker/run-job.sh snapshot snapshot
+19  11  *   *   0    /app/docker/run-job.sh snapshot snapshot
+49  14  *   *   0    /app/docker/run-job.sh snapshot snapshot
+49  18  *   *   0    /app/docker/run-job.sh snapshot snapshot
+49  18  *   *   4    /app/docker/run-job.sh snapshot snapshot
+49  18  *   *   1    /app/docker/run-job.sh snapshot snapshot
+
+# --- anytime-TD prices, the day before the slate. Costs one API credit a game.
+37  9   *   *   6    /app/docker/run-job.sh props snapshot:props
+
+# --- ESPN injuries and per-game news. Free, so it runs twice: Saturday with the
+#     props, and again Sunday morning for the overnight injury changes.
+40  9   *   *   6    /app/docker/run-job.sh context snapshot:context
+40  9   *   *   0    /app/docker/run-job.sh context snapshot:context
+
+# --- grading, once the week's games are final
+23  7   *   *   2    /app/docker/run-job.sh grade grade
+23  7   *   *   5    /app/docker/run-job.sh grade grade
+
+# --- Tuesday rebuild. Games first, then the play-by-play chain, which runs as
+#     one job so a failure in ingest:pbp stops it rating on stale team weeks.
+20  8   *   *   2    /app/docker/run-job.sh ingest-games ingest:games
+23  8   *   *   2    /app/docker/run-job.sh ingest-pbp ingest:pbp ingest:players rate
