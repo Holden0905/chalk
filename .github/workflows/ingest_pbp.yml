@@ -1,11 +1,13 @@
 name: ingest-pbp
 
-# Tuesday 13:00 UTC, an hour after the grade run, by which point nflverse has
-# published the weekend's play-by-play. With no season input the script infers
+# Tuesday 13:23 UTC, an hour after the grade run, by which point nflverse has
+# published the weekend's play-by-play. The odd minute keeps it off the top of
+# the hour, which is the most contended slot in GitHub's scheduling queue; the
+# offset from grade is unchanged. With no season input the script infers
 # the current season (January and February belong to the prior season).
 on:
   schedule:
-    - cron: '0 13 * * 2'
+    - cron: '23 13 * * 2'
   workflow_dispatch:
     inputs:
       season:

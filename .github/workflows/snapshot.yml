@@ -2,12 +2,23 @@ name: snapshot
 
 # Capture times are NFL kickoff slots in Eastern, expressed in UTC.
 # While EDT is in effect (UTC-4) they line up as:
-#   14:00 UTC daily      -> 10:00 AM ET  baseline capture
+#   14:17 UTC daily      -> 10:17 AM ET  baseline capture
 #   Fri 00:00 UTC        -> Thu  8:00 PM ET  (TNF)
 #   Sun 16:30 UTC        -> Sun 12:30 PM ET  (early slate)
 #   Sun 20:00 UTC        -> Sun  4:00 PM ET  (late afternoon slate)
 #   Mon 00:00 UTC        -> Sun  8:00 PM ET  (SNF)
 #   Tue 00:00 UTC        -> Mon  8:00 PM ET  (MNF)
+# The daily baseline runs at :17 rather than :00. GitHub queues scheduled runs
+# league-wide and the top of the hour is the most contended minute of all, so an
+# on-the-hour job is the most likely to be delayed or dropped. The baseline has
+# no kickoff to be early for, so it costs nothing to move it off the peak.
+#
+# The five capture slots below are deliberately NOT moved. Each is timed to sit
+# just before a kickoff, so moving one later spends the very margin it exists
+# for. Buying them the same protection means moving them EARLIER, which trades
+# closing-line accuracy for reliability -- a real decision, not a tidy-up, so it
+# is left alone here.
+#
 # DST ends Sun Nov 1 2026, when ET becomes EST (UTC-5). Cron here is fixed to
 # UTC, so from that date every slot lands one hour EARLIER in ET -- the Sunday
 # early capture becomes 11:30 AM ET, roughly 90 minutes before a 1:00 PM
@@ -15,7 +26,7 @@ name: snapshot
 # need to stay tight to kickoff through the end of the season.
 on:
   schedule:
-    - cron: '0 14 * * *'   # daily baseline
+    - cron: '17 14 * * *'  # daily baseline
     - cron: '0 0 * * 5'    # Thu night ET (TNF)
     - cron: '30 16 * * 0'  # Sun early slate ET (30 min of margin vs. 1:00 PM ET kickoff,
                            # since GitHub delays scheduled runs under load)

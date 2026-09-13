@@ -1,19 +1,23 @@
 name: props
 
-# Saturday 14:00 UTC (10:00 AM ET while EDT is in effect, 9:00 AM once DST ends
+# Saturday 14:37 UTC (10:37 AM ET while EDT is in effect, 9:37 AM once DST ends
 # Sun Nov 1 2026), which catches anytime-TD prices for the Sunday and Monday
 # slate the day before kickoff. The events endpoint is free, so the cost is one
 # API credit per game with a market.
 #
-# Sunday 14:00 UTC runs the context capture a second time and nothing else. The
+# Sunday 14:37 UTC runs the context capture a second time and nothing else. The
 # Saturday injury report is stale by Sunday morning: the game-day actives, and
 # the Saturday night downgrades that move a number most, land in between. Props
 # are deliberately skipped on that run, because those cost API credits and the
 # prices barely move overnight.
+#
+# Neither is on the hour. GitHub queues scheduled runs league-wide and :00 is
+# the most contended minute, so an on-the-hour job is the likeliest to be
+# delayed. Nothing here is timed against a kickoff, so the minute is free.
 on:
   schedule:
-    - cron: '0 14 * * 6'  # Saturday: props, then context
-    - cron: '0 14 * * 0'  # Sunday: context only
+    - cron: '37 14 * * 6'  # Saturday: props, then context
+    - cron: '37 14 * * 0'  # Sunday: context only
   workflow_dispatch:
 
 jobs:
@@ -32,7 +36,7 @@ jobs:
       # Skipped on the Sunday schedule only. A manual dispatch leaves
       # github.event.schedule empty, so dispatching still captures prices.
       - name: Anytime-TD prices
-        if: github.event.schedule != '0 14 * * 0'
+        if: github.event.schedule != '37 14 * * 0'
         run: npm run snapshot:props
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

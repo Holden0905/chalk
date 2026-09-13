@@ -1,15 +1,17 @@
 name: grade
 
 # Grades finals after the week's games are done: Tuesday catches the weekend
-# plus Monday night, Friday catches Thursday night. Both are 12:00 UTC (8:00 AM
-# ET while EDT is in effect, 7:00 AM ET once DST ends Sun Nov 1 2026), which
+# plus Monday night, Friday catches Thursday night. Both are 12:23 UTC (8:23 AM
+# ET while EDT is in effect, 7:23 AM ET once DST ends Sun Nov 1 2026), which
 # leaves plenty of margin after a night game for the scores feed to settle.
+# The odd minute is deliberate: GitHub queues scheduled runs league-wide and the
+# top of the hour is the most contended minute, so nothing here sits on :00.
 # The scores endpoint only reaches back daysFrom=3, so a longer gap than that
 # between runs would leave games ungradable.
 on:
   schedule:
-    - cron: '0 12 * * 2'  # Tuesday
-    - cron: '0 12 * * 5'  # Friday
+    - cron: '23 12 * * 2'  # Tuesday
+    - cron: '23 12 * * 5'  # Friday
   workflow_dispatch:
 
 jobs:
