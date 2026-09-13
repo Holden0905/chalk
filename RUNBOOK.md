@@ -134,12 +134,25 @@ docker compose logs --tail 20 chalk-cron
 
 ## Running a job by hand
 
-Same wrapper the schedule uses, so it logs and stamps a heartbeat identically:
+Same wrapper the schedule uses, and the same command — a cron line is a job
+name and nothing else, so what you type by hand is what cron runs:
 
 ```bash
-docker compose exec chalk-cron /app/docker/run-job.sh snapshot snapshot
-docker compose exec chalk-cron /app/docker/run-job.sh ingest-pbp ingest:pbp ingest:players rate
+docker compose exec chalk-cron /app/docker/run-job.sh snapshot
+docker compose exec chalk-cron /app/docker/run-job.sh ingest-pbp
 ```
+
+The jobs are `snapshot`, `props`, `context`, `grade`, `ingest-games` and
+`ingest-pbp`. Which npm scripts each one runs is the table at the top of
+`docker/run-job.sh`. To see what a job would do without doing it:
+
+```bash
+docker compose exec -e CHALK_DRY_RUN=1 chalk-cron /app/docker/run-job.sh ingest-pbp
+# ingest:pbp ingest:players rate
+```
+
+An unknown job name exits 2 rather than pretending to have run, and says so in
+the log and the heartbeat.
 
 To run a script raw, without touching the logs or the heartbeat:
 

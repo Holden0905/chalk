@@ -3,8 +3,11 @@
 # the GitHub Actions crons, which are pinned to UTC and drift an hour when the
 # clocks change. There is nothing to adjust on Nov 1.
 #
-# Each line hands off to run-job.sh, which logs the run to /app/logs, records
-# the Odds API budget left, and stamps a heartbeat. Edit here, then rebuild.
+# Each line names a job and nothing else. Which npm scripts a job runs is
+# decided by the job table at the top of run-job.sh, so the schedule and the
+# runner cannot fall out of step, and the command below is exactly what you
+# type by hand to test one. run-job.sh logs the run to /app/logs, records the
+# Odds API budget left, and stamps a heartbeat. Edit here, then rebuild.
 #
 # Cron gives a job almost no environment of its own, so both of these matter:
 # without PATH there is no node or npm on it at all.
@@ -14,26 +17,27 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 # m  h  dom mon dow  command
 #
 # --- lines: the daily baseline, then one capture just before each kickoff slot
-17  9   *   *   *    /app/docker/run-job.sh snapshot snapshot
-19  11  *   *   0    /app/docker/run-job.sh snapshot snapshot
-49  14  *   *   0    /app/docker/run-job.sh snapshot snapshot
-49  18  *   *   0    /app/docker/run-job.sh snapshot snapshot
-49  18  *   *   4    /app/docker/run-job.sh snapshot snapshot
-49  18  *   *   1    /app/docker/run-job.sh snapshot snapshot
+17  9   *   *   *    /app/docker/run-job.sh snapshot
+19  11  *   *   0    /app/docker/run-job.sh snapshot
+49  14  *   *   0    /app/docker/run-job.sh snapshot
+49  18  *   *   0    /app/docker/run-job.sh snapshot
+49  18  *   *   4    /app/docker/run-job.sh snapshot
+49  18  *   *   1    /app/docker/run-job.sh snapshot
 
 # --- anytime-TD prices, the day before the slate. Costs one API credit a game.
-37  9   *   *   6    /app/docker/run-job.sh props snapshot:props
+37  9   *   *   6    /app/docker/run-job.sh props
 
 # --- ESPN injuries and per-game news. Free, so it runs twice: Saturday with the
 #     props, and again Sunday morning for the overnight injury changes.
-40  9   *   *   6    /app/docker/run-job.sh context snapshot:context
-40  9   *   *   0    /app/docker/run-job.sh context snapshot:context
+40  9   *   *   6    /app/docker/run-job.sh context
+40  9   *   *   0    /app/docker/run-job.sh context
 
 # --- grading, once the week's games are final
-23  7   *   *   2    /app/docker/run-job.sh grade grade
-23  7   *   *   5    /app/docker/run-job.sh grade grade
+23  7   *   *   2    /app/docker/run-job.sh grade
+23  7   *   *   5    /app/docker/run-job.sh grade
 
-# --- Tuesday rebuild. Games first, then the play-by-play chain, which runs as
-#     one job so a failure in ingest:pbp stops it rating on stale team weeks.
-20  8   *   *   2    /app/docker/run-job.sh ingest-games ingest:games
-23  8   *   *   2    /app/docker/run-job.sh ingest-pbp ingest:pbp ingest:players rate
+# --- Tuesday rebuild. Games first, then the ingest-pbp job, which is the chain
+#     ingest:pbp -> ingest:players -> rate and stops at the first failure, so a
+#     bad play-by-play pull never goes on to rate teams off stale weeks.
+20  8   *   *   2    /app/docker/run-job.sh ingest-games
+23  8   *   *   2    /app/docker/run-job.sh ingest-pbp

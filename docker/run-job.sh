@@ -1,12 +1,48 @@
 #!/bin/bash
-# One scheduled job: run one or more npm scripts in order, log the run with a
-# timestamp and whatever Odds API budget is left, and stamp a heartbeat.
+# One scheduled job: run its npm scripts in order, log the run with a timestamp
+# and whatever Odds API budget is left, and stamp a heartbeat.
 #
-#   run-job.sh <label> <npm-script> [npm-script ...]
+#   run-job.sh <job>                      # scripts come from the table below
+#   run-job.sh <job> <npm-script> [...]   # or name them explicitly
+#   CHALK_DRY_RUN=1 run-job.sh <job>      # print what it would run, do nothing
+#
+# The job name alone is enough, which matters because that is what a person
+# types. An earlier version required the scripts as arguments and the crontab
+# passed both, so `run-job.sh snapshot snapshot` worked from cron while
+# `run-job.sh snapshot` by hand shifted off the only argument, looped over an
+# empty list, and reported a clean run having done nothing at all.
 #
 # Scripts run in sequence and stop at the first failure, which is how the same
 # jobs behave as GitHub Actions steps.
 set -uo pipefail
+
+# The one place that says what a job does. docker/crontab names jobs from this
+# table and nothing else, so the schedule and the runner cannot drift apart.
+job_scripts() {
+  case "$1" in
+    snapshot)     echo "snapshot" ;;
+    props)        echo "snapshot:props" ;;
+    context)      echo "snapshot:context" ;;
+    grade)        echo "grade" ;;
+    ingest-games) echo "ingest:games" ;;
+    ingest-pbp)   echo "ingest:pbp ingest:players rate" ;;
+    *)            return 1 ;;
+  esac
+}
+
+job_labels() {
+  echo "snapshot props context grade ingest-games ingest-pbp"
+}
+
+usage() {
+  echo "usage: run-job.sh <job> [npm-script ...]" >&2
+  echo "jobs:  $(job_labels)" >&2
+}
+
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 2
+fi
 
 JOB="$1"; shift
 
@@ -18,6 +54,25 @@ ENV_FILE="${CHALK_ENV_FILE:-/etc/chalk.env}"
 BEAT_DIR="$LOG_DIR/heartbeat"
 LOG="$LOG_DIR/$JOB.log"
 MAX_LOG_BYTES="${CHALK_MAX_LOG_BYTES:-$((5 * 1024 * 1024))}"
+
+# Explicit scripts win; otherwise look the job up.
+if [ "$#" -eq 0 ]; then
+  if resolved="$(job_scripts "$JOB")"; then
+    # Word splitting is the point here: the table returns a space separated list.
+    # shellcheck disable=SC2086
+    set -- $resolved
+  fi
+fi
+
+if [ "${CHALK_DRY_RUN:-}" = "1" ]; then
+  if [ "$#" -eq 0 ]; then
+    echo "run-job.sh: no scripts for job '$JOB'" >&2
+    usage
+    exit 2
+  fi
+  echo "$*"
+  exit 0
+fi
 
 mkdir -p "$LOG_DIR" "$BEAT_DIR"
 
@@ -45,21 +100,34 @@ trap 'rm -f "$out"' EXIT
 
 status=0
 failed=""
-for script in "$@"; do
-  printf -- '--- npm run %s ---\n' "$script" >> "$out"
-  # Deliberately not `if ! npm run ...`: inside a negated condition $? is the
-  # status of the negation, which is 0 precisely when the command failed. That
-  # reads as a clean run in the heartbeat, which is the one field worth
-  # alerting on, so the status is captured before anything can touch it.
-  npm run --silent "$script" >> "$out" 2>&1
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    status=$rc
-    failed="$script"
-    printf -- '--- %s FAILED, exit %s; later steps skipped ---\n' "$script" "$rc" >> "$out"
-    break
-  fi
-done
+
+if [ "$#" -eq 0 ]; then
+  # Nothing to run is a failure, not a clean run. Reported through the log and
+  # the heartbeat like any other, so a mistyped job name leaves a trace in the
+  # place someone is already looking rather than only on the terminal.
+  status=2
+  {
+    printf -- '--- no scripts for job %s ---\n' "$JOB"
+    printf -- 'Known jobs: %s\n' "$(job_labels)"
+    printf -- 'Or name the scripts: run-job.sh %s <npm-script> [...]\n' "$JOB"
+  } >> "$out"
+else
+  for script in "$@"; do
+    printf -- '--- npm run %s ---\n' "$script" >> "$out"
+    # Deliberately not `if ! npm run ...`: inside a negated condition $? is the
+    # status of the negation, which is 0 precisely when the command failed. That
+    # reads as a clean run in the heartbeat, which is the one field worth
+    # alerting on, so the status is captured before anything can touch it.
+    npm run --silent "$script" >> "$out" 2>&1
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      status=$rc
+      failed="$script"
+      printf -- '--- %s FAILED, exit %s; later steps skipped ---\n' "$script" "$rc" >> "$out"
+      break
+    fi
+  done
+fi
 
 finished="$(date '+%Y-%m-%d %H:%M:%S %Z')"
 elapsed=$(( $(date +%s) - start_epoch ))
