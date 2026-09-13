@@ -35,7 +35,11 @@ import of the database layer into a build error.
 
 1. New Project, point it at this repository.
 2. **Set the Root Directory to `web`.** The repo root is the ingest scripts,
-   not the site.
+   not the site. That also means `web/package.json` has to list every package
+   the app imports, even one the repo root already depends on: locally Node
+   walks up and finds the root `node_modules`, but Vercel never sees it, so a
+   missing entry builds here and fails there. `csv-parse` is listed for exactly
+   that reason — `src/lib/tdData.ts` parses the nflverse schedule file.
 3. Framework preset is Next.js. `vercel.json` here covers the rest.
 4. Add the four variables above under Settings, Environment Variables, for
    Production and Preview. Do not add them to `vercel.json`; they are secrets.
