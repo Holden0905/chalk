@@ -4,7 +4,16 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/supabase";
 import { chalkLineForBet, lookupGame, MARKETS, type Market } from "@/lib/betsData";
 
-export type FormState = { error?: string; ok?: string };
+export type FormState = {
+  error?: string;
+  ok?: string;
+  /**
+   * When the success happened. The form clears itself off this rather than off
+   * the message, so logging the same bet twice in a row -- same words, same
+   * message -- still counts as two successes and still clears the second time.
+   */
+  at?: number;
+};
 
 /**
  * Mirrors the validation in bet.js: the market decides which fields are
@@ -68,7 +77,10 @@ export async function createBet(_prev: FormState, form: FormData): Promise<FormS
   revalidatePath("/bets");
   const shown = market === "moneyline" || market === "anytime_td" ? side : `${side} ${line}`;
   const vs = chalk_line == null ? "" : ` Chalk had ${chalk_line}.`;
-  return { ok: `Logged ${market} ${shown} at ${price > 0 ? `+${price}` : price} for ${stake}.${vs}` };
+  return {
+    ok: `Logged ${market} ${shown} at ${price > 0 ? `+${price}` : price} for ${stake}.${vs}`,
+    at: Date.now(),
+  };
 }
 
 export async function deleteBet(_prev: FormState, form: FormData): Promise<FormState> {
