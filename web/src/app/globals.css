@@ -220,11 +220,15 @@ body > * {
   opacity: 0.85;
 }
 
-.nav-link[aria-current="page"] {
+.nav-link[aria-current="page"],
+.nav-link[data-on="true"] {
   opacity: 1;
 }
 
-.nav-link[aria-current="page"]::after {
+/* data-on is the multi-select form of the same state: the season picker on
+   /league can have several on at once, where aria-current="page" may not. */
+.nav-link[aria-current="page"]::after,
+.nav-link[data-on="true"]::after {
   content: "";
   position: absolute;
   left: 0.35rem;

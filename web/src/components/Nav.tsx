@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/board", label: "Board" },
   { href: "/teams", label: "Teams" },
   { href: "/stats", label: "Stats" },
+  { href: "/league", label: "League" },
   { href: "/tds", label: "TDs" },
   { href: "/bets", label: "Bets" },
   { href: "/about", label: "About" },

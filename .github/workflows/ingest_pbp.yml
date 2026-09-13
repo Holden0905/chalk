@@ -26,6 +26,15 @@ jobs:
 
       - run: npm ci
 
+      # Schedules, closing lines and finals for every regular season game back
+      # to 2022. The whole file arrives in one request, so with no season input
+      # this refreshes all of them rather than just the current one.
+      - run: npm run ingest:games -- ${{ inputs.season }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+
       - run: npm run ingest:pbp -- ${{ inputs.season }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
